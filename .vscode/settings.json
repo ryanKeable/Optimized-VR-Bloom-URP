@@ -51,5 +51,5 @@
         "temp/": true,
         "Temp/": true
     },
-    "dotnet.defaultSolution": "OptimizedVRBloom-URP-2022.3.sln"
+    "dotnet.defaultSolution": "Optimized-VR-Bloom-URP.sln"
 }
