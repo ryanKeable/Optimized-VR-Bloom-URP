@@ -17,6 +17,8 @@
     
     TEXTURE2D_X(_MainTexLowMip);
     float4 _MainTexLowMip_TexelSize;
+    float4 _BlitTexture_TexelSize;
+
 
     half4 _Bloom_Params; // x: scatter, y: threshold, z: threshold knee, w: threshold numerator
 
@@ -61,15 +63,13 @@
         // mask first then blur then filter
         half3 color = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_LinearClamp, uv).xyz;
         
-        // #ifdef _BLOOM_OFF
-        //     half hdrMask = FastTonemap(HDRFilter(color).xxx);
-        //     if (hdrMask <= 0)
-        //         return 0;
-        // #endif
+        half hdrMask = FastTonemap(HDRFilter(color).xxx);
+        if (hdrMask <= 0)
+            return 0;
 
         // bloom filter
-        // color = FilteredColour(color);
-        // color = FastTonemap(color);
+        color = FilteredColour(color);
+        color = FastTonemap(color);
 
         return half4(color, 1.0h);
     }

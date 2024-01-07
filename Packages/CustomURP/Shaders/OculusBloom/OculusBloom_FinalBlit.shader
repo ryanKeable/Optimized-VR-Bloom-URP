@@ -5,6 +5,8 @@ Shader "OculusBloom/FinalBlit"
 
     #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
     #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Filtering.hlsl"
+    #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/ScreenCoordOverride.hlsl"
+
     #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
     #include "Packages/com.unity.render-pipelines.universal/Shaders/PostProcessing/Common.hlsl"
     #include "OculusBloom_FXAA.hlsl"
@@ -21,7 +23,7 @@ Shader "OculusBloom/FinalBlit"
         UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
 
         float2 uv = UnityStereoTransformScreenSpaceTex(input.texcoord);
-        half4 bloom = SAMPLE_TEXTURE2D_X(_Bloom_Texture, sampler_LinearClamp, uv);
+        half4 bloom = SAMPLE_TEXTURE2D_X(_Bloom_Texture, sampler_LinearClamp, SCREEN_COORD_REMOVE_SCALEBIAS(uv));
         half3 color = FXAA_HDRFilter(uv, _BlitTex, _BlitTex_TexelSize, bloom.a);
 
         bloom.rgb *= _Bloom_Intensity.xxx;
