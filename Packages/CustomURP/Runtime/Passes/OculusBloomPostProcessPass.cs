@@ -199,12 +199,10 @@ namespace UnityEngine.Rendering.Universal
                 {
                     using (new ProfilingScope(cmd, ProfilingSampler.Get(URPProfileId.Bloom)))
                         SetupBloom(cmd, GetSource());
-                }
 
-                // Done with Uber, blit it
-                var colorLoadAction = RenderBufferLoadAction.DontCare;
-                if (m_Destination == k_CameraTarget && !cameraData.isDefaultViewport)
-                    colorLoadAction = RenderBufferLoadAction.Load;
+                    cmd.SetGlobalTexture("_BlitTex", source);
+
+                }
 
                 // Note: We rendering to "camera target" we need to get the cameraData.targetTexture as this will get the targetTexture of the camera stack.
                 // Overlay cameras need to output to the target described in the base camera while doing camera stack.
@@ -214,13 +212,19 @@ namespace UnityEngine.Rendering.Universal
                     cameraTargetID = cameraData.xr.renderTarget;
 #endif
 
-                // Get RTHandle alias to use RTHandle apis
-                RenderTargetIdentifier cameraTarget = cameraData.targetTexture != null ? new RenderTargetIdentifier(cameraData.targetTexture) : cameraTargetID;
-                RTHandleStaticHelpers.SetRTHandleStaticWrapper(cameraTarget);
-                var cameraTargetHandle = RTHandleStaticHelpers.s_RTHandleWrapper;
+                if (cameraData.isSceneViewCamera)
+                {
+                    Blitter.BlitCameraTexture(cmd, GetDestination(), m_Destination, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare, m_FinalBlitMaterial, m_Destination.rt?.filterMode == FilterMode.Bilinear ? 1 : 0);
+                }
+                else
+                {
+                    Blitter.BlitCameraTexture(cmd, GetSource(), m_Destination, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare, m_FinalBlitMaterial, 0);
+                }
 
-                RenderingUtils.FinalBlit(cmd, ref cameraData, GetSource(), cameraTargetHandle, colorLoadAction, RenderBufferStoreAction.Store, m_FinalBlitMaterial, 0);
-                renderer.ConfigureCameraColorTarget(cameraTargetHandle);
+                if (m_Bloom != null && m_Bloom.active)
+                {
+                    cmd.ReleaseTemporaryRT(ShaderConstants._BloomMipUp[0]);
+                }
 
             }
         }
@@ -266,16 +270,23 @@ namespace UnityEngine.Rendering.Universal
 
             var desc = GetStereoCompatibleDescriptor(tw, th, m_DefaultHDRFormat);
 
-            // bilinear performs first basic blur at half res
-            // this way we do not discard too many pixels before the blur passes
-            cmd.GetTemporaryRT(ShaderConstants._BloomMipDown[0], desc, FilterMode.Bilinear);
-            cmd.GetTemporaryRT(ShaderConstants._BloomMipUp[0], desc, FilterMode.Bilinear);
+            for (int i = 0; i < mipCount; i++)
+            {
+                RenderingUtils.ReAllocateIfNeeded(ref m_BloomMipUp[i], desc, FilterMode.Bilinear, TextureWrapMode.Clamp, name: m_BloomMipUp[i].name);
+                RenderingUtils.ReAllocateIfNeeded(ref m_BloomMipDown[i], desc, FilterMode.Bilinear, TextureWrapMode.Clamp, name: m_BloomMipDown[i].name);
+                desc.width = Mathf.Max(1, desc.width >> 1);
+                desc.height = Mathf.Max(1, desc.height >> 1);
+            }
 
-            cmd.Blit(source, BlitDstDiscardContent(cmd, ShaderConstants._BloomMipDown[0]), m_BloomMaterial, 0);
+
+            // cmd.Blit(source, BlitDstDiscardContent(cmd, ShaderConstants._BloomMipDown[0]), m_BloomMaterial, 0);
+            Blitter.BlitCameraTexture(cmd, source, m_BloomMipDown[0], RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, m_BloomMaterial, 0);
 
             // Downsample - gaussian pyramid
             // we go down again before we blur
             int lastDown = ShaderConstants._BloomMipDown[0];
+            cmd.Blit(lastDown, BlitDstDiscardContent(cmd, ShaderConstants._BloomMipUp[0]), m_BloomMaterial, 0);
+
             for (int i = 1; i < mipCount - 1; i++)
             {
                 tw = Mathf.Max(1, tw >> 1);
@@ -368,13 +379,8 @@ namespace UnityEngine.Rendering.Universal
             public static readonly int _MainTexLowMip = Shader.PropertyToID("_MainTexLowMip");
             public static readonly int _Bloom_Params = Shader.PropertyToID("_Bloom_Params");
             public static readonly int _Bloom_Intenisty = Shader.PropertyToID("_Bloom_Intensity");
-            public static readonly int _Bloom_RGBM = Shader.PropertyToID("_Bloom_RGBM");
             public static readonly int _Bloom_Texture = Shader.PropertyToID("_Bloom_Texture");
-
-            public static readonly int _TempNoMSAATex = Shader.PropertyToID("_TempNoMSAATex");
             public static readonly int _FullscreenProjMat = Shader.PropertyToID("_FullscreenProjMat");
-            public static readonly int _MSAACopyString = Shader.PropertyToID("_MSAACopyString");
-            public static readonly int _BloomFilter = Shader.PropertyToID("_BloomFilter");
             public static int[] _BloomMipUp;
             public static int[] _BloomMipDown;
         }
