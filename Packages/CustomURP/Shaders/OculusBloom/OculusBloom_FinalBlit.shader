@@ -20,8 +20,7 @@ Shader "OculusBloom/FinalBlit"
     {
         UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
 
-        half2 uv = UnityStereoTransformScreenSpaceTex(input.uv);
-
+        float2 uv = UnityStereoTransformScreenSpaceTex(input.texcoord);
         half4 bloom = SAMPLE_TEXTURE2D_X(_Bloom_Texture, sampler_LinearClamp, uv);
         half3 color = FXAA_HDRFilter(uv, _BlitTex, _BlitTex_TexelSize, bloom.a);
 

@@ -18,11 +18,13 @@ namespace UnityEngine.Rendering.Universal
     {
 #if UNITY_EDITOR
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1812")]
-        internal class CreateUniversalRendererAsset : EndNameEditAction
+        internal class OculusBloomRendererAsset : EndNameEditAction
         {
             public override void Action(int instanceId, string pathName, string resourceFile)
             {
-                var instance = UniversalRenderPipelineAsset.CreateRendererAsset(pathName, RendererType.UniversalRenderer, false) as UniversalRendererData;
+                var instance = CreateInstance<OculusBloomData>();
+                AssetDatabase.CreateAsset(instance, pathName);
+                ResourceReloader.ReloadAllNullIn(instance, UniversalRenderPipelineAsset.packagePath);
                 Selection.activeObject = instance;
             }
         }
@@ -30,30 +32,17 @@ namespace UnityEngine.Rendering.Universal
         // [MenuItem("Assets/Create/Rendering/Universal Render Pipeline/DelMar Renderer", priority = CoreUtils.assetCreateMenuPriority2)]
 
         [MenuItem("Assets/Create/Rendering/Oculus Bloom Renderer", priority = CoreUtils.Sections.section3 + CoreUtils.Priorities.assetsCreateRenderingMenuPriority + 2)]
-        static void CreateUniversalRendererData()
+        static void CreateOculusBloomDataRendererData()
         {
-            ProjectWindowUtil.StartNameEditingIfProjectWindowExists(0, CreateInstance<CreateUniversalRendererAsset>(), "New Custom Universal Renderer Data.asset", null, null);
+            ProjectWindowUtil.StartNameEditingIfProjectWindowExists(0, CreateInstance<OculusBloomRendererAsset>(), "New Custom Universal Renderer Data.asset", null, null);
         }
 
 #endif
 
+        public OculusBloomShaderResources oculusBloomShaders = null;
 
         const int k_LatestAssetVersion = 2;
-        [SerializeField] int m_AssetVersion = 0;
-        [SerializeField] LayerMask m_OpaqueLayerMask = -1;
-        [SerializeField] LayerMask m_TransparentLayerMask = -1;
-        [SerializeField] StencilStateData m_DefaultStencilState = new StencilStateData() { passOperation = StencilOp.Replace }; // This default state is compatible with deferred renderer.
-        [SerializeField] bool m_ShadowTransparentReceive = true;
-        [SerializeField] RenderingMode m_RenderingMode = RenderingMode.Forward;
-        [SerializeField] DepthPrimingMode m_DepthPrimingMode = DepthPrimingMode.Disabled; // Default disabled because there are some outstanding issues with Text Mesh rendering.
-        [SerializeField] CopyDepthMode m_CopyDepthMode = CopyDepthMode.AfterTransparents;
-#if UNITY_EDITOR
-        // Do not strip accurateGbufferNormals on Mobile Vulkan as some GPUs do not support R8G8B8A8_SNorm, which then force us to use accurateGbufferNormals
-        [ShaderKeywordFilter.ApplyRulesIfNotGraphicsAPI(GraphicsDeviceType.Vulkan)]
-        [ShaderKeywordFilter.RemoveIf(false, keywordNames: ShaderKeywordStrings._GBUFFER_NORMALS_OCT)]
-#endif
-        [SerializeField] bool m_AccurateGbufferNormals = false;
-        [SerializeField] IntermediateTextureMode m_IntermediateTextureMode = IntermediateTextureMode.Always;
+
 
 
 
@@ -66,17 +55,18 @@ namespace UnityEngine.Rendering.Universal
             /// <summary>
             /// Blit shader.
             /// </summary>
-            [Reload("Shaders/Utils/Blit.shader")]
-            public Shader blitPS;
+            [Reload("Shaders/OculusBloom/OculusBloom_FinalBlit.shader")]
+            public Shader finalBlitPS;
 
             /// <summary>
             /// Copy Depth shader.
             /// </summary>
-            [Reload("Shaders/Utils/CopyDepth.shader")]
-            public Shader copyDepthPS;
+            [Reload("Shaders/OculusBloom/OculusBloom_Bloom.shader")]
+            public Shader bloomPS;
 
 
         }
+
 
         /// <inheritdoc/>
         protected override ScriptableRenderer Create()
@@ -85,22 +75,17 @@ namespace UnityEngine.Rendering.Universal
             {
                 ReloadAllNullProperties();
             }
-            return new UniversalRenderer(this);
+            return new OculusBloomRendererer(this);
         }
 
         /// <inheritdoc/>
         protected override void OnEnable()
         {
-            base.OnEnable();
 
-            // Upon asset creation, OnEnable is called and `shaders` reference is not yet initialized
-            // We need to call the OnEnable for data migration when updating from old versions of UniversalRP that
-            // serialized resources in a different format. Early returning here when OnEnable is called
-            // upon asset creation is fine because we guarantee new assets get created with all resources initialized.
-            if (shaders == null)
+            if (oculusBloomShaders == null)
                 return;
 
-            ReloadAllNullProperties();
+            base.OnEnable();
         }
 
         private void ReloadAllNullProperties()
@@ -117,23 +102,5 @@ namespace UnityEngine.Rendering.Universal
 #endif
         }
 
-        /// <inheritdoc/>
-        void ISerializationCallbackReceiver.OnBeforeSerialize()
-        {
-            m_AssetVersion = k_LatestAssetVersion;
-        }
-
-        /// <inheritdoc/>
-        void ISerializationCallbackReceiver.OnAfterDeserialize()
-        {
-            if (m_AssetVersion <= 1)
-            {
-                // To avoid breaking existing projects, keep the old AfterOpaques behaviour. The new AfterTransparents default will only apply to new projects.
-                m_CopyDepthMode = CopyDepthMode.AfterOpaques;
-            }
-
-
-            m_AssetVersion = k_LatestAssetVersion;
-        }
     }
 }

@@ -10,8 +10,8 @@
 
     #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
     #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Filtering.hlsl"
-    #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-    #include "Packages/com.unity.render-pipelines.universal/Shaders/PostProcessing/Common.hlsl"
+    #include "Packages/CustomURP/ShaderLibrary/Core.hlsl"
+    #include "Packages/CustomURP/Shaders/PostProcessing/Common.hlsl"
     #include "OculusBloom_FXAA.hlsl"
     
     TEXTURE2D_X(_MainTex);
@@ -43,31 +43,6 @@
     
 
 
-    half3 BoxBlur(half2 uv, half3 color)
-    {
-        half3 sum = color; // takes the original sample instead of sampling in the loop again
-
-        int upper = ((KernelSize - 1) / 2);
-        int lower = -upper;
-        
-        UNITY_UNROLL
-        for (int x = lower; x <= upper; ++x)
-        {
-            UNITY_UNROLL
-            for (int y = lower; y <= upper; ++y)
-            {
-                if (x != 0 || y != 0) // ignores sampling the original sample again
-
-                {
-                    half2 offset = half2(_MainTex_TexelSize.x * x * 2.0h, _MainTex_TexelSize.y * y);
-                    sum += SAMPLE_TEXTURE2D_X(_MainTex, sampler_LinearClamp, uv + offset).xyz;
-                }
-            }
-        }
-
-        sum /= (KernelSize * KernelSize);
-        return half3(sum);
-    }
 
     half3 FilteredColour(half3 color)
     {
@@ -85,7 +60,7 @@
     half4 FragPrefilter(Varyings input) : SV_Target
     {
         UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
-        half2 uv = UnityStereoTransformScreenSpaceTex(input.uv);
+        half2 uv = UnityStereoTransformScreenSpaceTex(input.texcoord);
         
         // mask first then blur then filter
         half3 color = SAMPLE_TEXTURE2D_X(_MainTex, sampler_LinearClamp, uv).xyz;
@@ -95,7 +70,6 @@
             if (hdrMask <= 0)
                 return 0;
         #endif
-        // half3 color = BoxBlur(uv, mask);
 
         // bloom filter
         color = FilteredColour(color);
@@ -107,7 +81,7 @@
     half4 FragLinearBlurH(Varyings input) : SV_Target
     {
         UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
-        half2 uv = UnityStereoTransformScreenSpaceTex(input.uv);
+        half2 uv = UnityStereoTransformScreenSpaceTex(input.texcoord);
 
         #ifdef _BLOOM_OFF
 
@@ -149,7 +123,7 @@
     half4 FragLinearBlurV(Varyings input) : SV_Target
     {
         UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
-        half2 uv = UnityStereoTransformScreenSpaceTex(input.uv);
+        half2 uv = UnityStereoTransformScreenSpaceTex(input.texcoord);
 
         #ifdef _BLOOM_OFF
 
@@ -186,7 +160,7 @@
     half4 FragUpsample(Varyings input) : SV_Target
     {
         UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
-        half2 uv = UnityStereoTransformScreenSpaceTex(input.uv);
+        half2 uv = UnityStereoTransformScreenSpaceTex(input.texcoord);
 
         half4 highMip = SAMPLE_TEXTURE2D_X(_MainTex, sampler_LinearClamp, uv);
         half3 lowMip = SAMPLE_TEXTURE2D_X(_MainTexLowMip, sampler_LinearClamp, uv).xyz;

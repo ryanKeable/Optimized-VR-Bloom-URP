@@ -71,7 +71,11 @@ namespace UnityEngine.Rendering.Universal
         TransparentSettingsPass m_TransparentSettingsPass;
         DrawObjectsPass m_RenderTransparentForwardPass;
         InvokeOnRenderObjectCallbackPass m_OnRenderObjectCallbackPass;
-        FinalBlitPass m_FinalBlitPass;
+
+
+
+        // Oculus Bloom Specific Passes
+        OculusBloomPostProcessPass m_OculusBloomPostProcessPass;
         CapturePass m_CapturePass;
 #if ENABLE_VR && ENABLE_XR_MODULE
         XROcclusionMeshPass m_XROcclusionMeshPass;
@@ -108,6 +112,12 @@ namespace UnityEngine.Rendering.Universal
         Material m_CameraMotionVecMaterial = null;
         Material m_ObjectMotionVecMaterial = null;
 
+        // Materials usesd specifically for Oculus Bloom Rendering
+        Material m_OculusBloomMaterial = null;
+        Material m_OculusBloomFinalBlitMaterial = null;
+
+
+
         PostProcessPasses m_PostProcessPasses;
 
         /// <summary>
@@ -129,6 +139,10 @@ namespace UnityEngine.Rendering.Universal
             m_StencilDeferredMaterial = CoreUtils.CreateEngineMaterial(data.shaders.stencilDeferredPS);
             m_CameraMotionVecMaterial = CoreUtils.CreateEngineMaterial(data.shaders.cameraMotionVector);
             m_ObjectMotionVecMaterial = CoreUtils.CreateEngineMaterial(data.shaders.objectMotionVector);
+
+
+            m_OculusBloomFinalBlitMaterial = CoreUtils.CreateEngineMaterial(data.oculusBloomShaders.finalBlitPS);
+            m_OculusBloomMaterial = CoreUtils.CreateEngineMaterial(data.oculusBloomShaders.bloomPS);
 
             StencilStateData stencilData = data.defaultStencilState;
             m_DefaultStencilState = StencilState.defaultValue;
@@ -266,7 +280,10 @@ namespace UnityEngine.Rendering.Universal
             }
 
             m_CapturePass = new CapturePass(RenderPassEvent.AfterRendering);
-            m_FinalBlitPass = new FinalBlitPass(RenderPassEvent.AfterRendering + k_FinalBlitPassQueueOffset, m_BlitMaterial, m_BlitHDRMaterial);
+
+
+            var oculusBloomPostProcessParams = PostProcessParams.Create();
+            m_OculusBloomPostProcessPass = new OculusBloomPostProcessPass(RenderPassEvent.AfterRendering + k_FinalBlitPassQueueOffset, data.postProcessData, m_OculusBloomFinalBlitMaterial, m_OculusBloomMaterial, ref oculusBloomPostProcessParams);
 
 #if UNITY_EDITOR
             m_FinalDepthCopyPass = new CopyDepthPass(RenderPassEvent.AfterRendering + 9, m_CopyDepthMaterial);
@@ -303,7 +320,7 @@ namespace UnityEngine.Rendering.Universal
             m_ForwardLights.Cleanup();
             m_GBufferPass?.Dispose();
             m_PostProcessPasses.Dispose();
-            m_FinalBlitPass?.Dispose();
+            m_OculusBloomPostProcessPass?.Dispose();
             m_DrawOffscreenUIPass?.Dispose();
             m_DrawOverlayUIPass?.Dispose();
 
@@ -839,6 +856,11 @@ namespace UnityEngine.Rendering.Universal
             // Optimized store actions are very important on tile based GPUs and have a great impact on performance.
             // if MSAA is enabled and any of the following passes need a copy of the color or depth target, make sure the MSAA'd surface is stored
             // if following passes won't use it then just resolve (the Resolve action will still store the resolved surface, but discard the MSAA'd surface, which is very expensive to store).
+
+
+            // TODO: We do not want to store the MSAA'd surface even if we are copying the color as we will resolve it later with FXAA
+
+
             RenderBufferStoreAction opaquePassColorStoreAction = RenderBufferStoreAction.Store;
             if (cameraTargetDescriptor.msaaSamples > 1)
                 opaquePassColorStoreAction = copyColorPass ? RenderBufferStoreAction.StoreAndResolve : RenderBufferStoreAction.Store;
@@ -984,8 +1006,8 @@ namespace UnityEngine.Rendering.Universal
                 EnqueuePass(m_DrawOffscreenUIPass);
             }
 
-            m_FinalBlitPass.Setup(cameraTargetDescriptor, m_ActiveCameraColorAttachment);
-            EnqueuePass(m_FinalBlitPass);
+            m_OculusBloomPostProcessPass.Setup(cameraTargetDescriptor, m_ActiveCameraColorAttachment);
+            EnqueuePass(m_OculusBloomPostProcessPass);
 
 #if UNITY_EDITOR
             if (isSceneViewOrPreviewCamera || (isGizmosEnabled && lastCameraInTheStack))
