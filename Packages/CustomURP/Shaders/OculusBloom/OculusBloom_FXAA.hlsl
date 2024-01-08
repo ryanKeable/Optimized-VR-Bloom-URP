@@ -7,17 +7,19 @@
 #define ContrastThreshold (0.0625h)
 #define RelativeThreshold (0.125h)
 
-#define FXAA_SPAN_MAX           (8.0h)
-#define FXAA_REDUCE_MUL         (0.25h * (1.0h / 12.0h))
-#define FXAA_REDUCE_MIN         (1.0h / 128.0h)
+#define FXAA_SPAN_MAX (8.0h)
+#define FXAA_REDUCE_MUL (0.25h * (1.0h / 12.0h))
+#define FXAA_REDUCE_MIN (1.0h / 128.0h)
 
-struct HDRLuminanceData {
+struct HDRLuminanceData
+{
     half2 m, ne, nw, se, sw;
     half highest, lowest, contrast;
 };
 
-half LinearRgbToLuminance(half3 linearRgb) {
-    return dot(linearRgb, half3(0.2126729h,  0.7151522h, 0.0721750h));
+half LinearRgbToLuminance(half3 linearRgb)
+{
+    return dot(linearRgb, half3(0.2126729h, 0.7151522h, 0.0721750h));
 }
 
 //cheap filter
@@ -43,16 +45,17 @@ half FilteredHDRMask(half mask)
 half3 Fetch(float2 coords, float2 offset, TEXTURE2D_X(tex))
 {
     float2 uv = coords + offset;
-    return (SAMPLE_TEXTURE2D_X(tex, sampler_LinearClamp, uv).xyz);
+    return(SAMPLE_TEXTURE2D_X(tex, sampler_LinearClamp, uv).xyz);
 }
 
 // store the luma in the x channel and the hdr value in the y
 // we need the luma for blending calculations and we need to the hdr for masking
-half2 SampleHDRFilterLuminance (half2 uv, half4 texelSize, TEXTURE2D_X(tex), int uOffset = 0, int vOffset = 0) {
+half2 SampleHDRFilterLuminance(half2 uv, half4 texelSize, TEXTURE2D_X(tex), int uOffset = 0, int vOffset = 0)
+{
     half luma = 0.0;
 
     uv += texelSize.xy * float2(uOffset, vOffset);
-    half3 color =  SAMPLE_TEXTURE2D_X(tex, sampler_LinearClamp, uv).xyz;
+    half3 color = SAMPLE_TEXTURE2D_X(tex, sampler_LinearClamp, uv).xyz;
 
     // filtering again helps remove text and other issues
     half hdrMask = HDRFilter(color);
@@ -64,24 +67,26 @@ half2 SampleHDRFilterLuminance (half2 uv, half4 texelSize, TEXTURE2D_X(tex), int
 }
 // ok we need to know when sampling luminance if a pixel in our neighbou0rhood has a hdr value
 // ok we need to know when sampling luminance if a pixel in our neighbou0rhood has a hdr value
-HDRLuminanceData SampleHDRFilterLuminanceNeighborhood (half2 uv, half4 texelSize, TEXTURE2D_X(tex)) {
+HDRLuminanceData SampleHDRFilterLuminanceNeighborhood(half2 uv, half4 texelSize, TEXTURE2D_X(tex))
+{
     
     HDRLuminanceData l;
     l.m = saturate(SampleHDRFilterLuminance(uv, texelSize, tex, 0, 0));
-    l.ne = saturate(SampleHDRFilterLuminance(uv, texelSize, tex, 1,  1));
-    l.nw = saturate(SampleHDRFilterLuminance(uv, texelSize, tex, -1,  1));
+    l.ne = saturate(SampleHDRFilterLuminance(uv, texelSize, tex, 1, 1));
+    l.nw = saturate(SampleHDRFilterLuminance(uv, texelSize, tex, -1, 1));
     l.se = saturate(SampleHDRFilterLuminance(uv, texelSize, tex, 1, -1));
     l.sw = saturate(SampleHDRFilterLuminance(uv, texelSize, tex, -1, -1));
 
     return l;
 }
 
-HDRLuminanceData SampleHDRFilterLuminanceNeighborhoodNS (half2 uv, half4 texelSize, TEXTURE2D_X(tex)) {
+HDRLuminanceData SampleHDRFilterLuminanceNeighborhoodNS(half2 uv, half4 texelSize, TEXTURE2D_X(tex))
+{
     
     HDRLuminanceData l;
     l.m = (SampleHDRFilterLuminance(uv, texelSize, tex, 0, 0));
-    l.ne = (SampleHDRFilterLuminance(uv, texelSize, tex, 1,  1));
-    l.nw = (SampleHDRFilterLuminance(uv, texelSize, tex, -1,  1));
+    l.ne = (SampleHDRFilterLuminance(uv, texelSize, tex, 1, 1));
+    l.nw = (SampleHDRFilterLuminance(uv, texelSize, tex, -1, 1));
     l.se = (SampleHDRFilterLuminance(uv, texelSize, tex, 1, -1));
     l.sw = (SampleHDRFilterLuminance(uv, texelSize, tex, -1, -1));
 
@@ -90,35 +95,35 @@ HDRLuminanceData SampleHDRFilterLuminanceNeighborhoodNS (half2 uv, half4 texelSi
 
 
 // if my neighbourhood lacks a HDR pixel then we should skip me
-bool ShouldSkipPixel_HDRFilter(HDRLuminanceData l) {
+bool ShouldSkipPixel_HDRFilter(HDRLuminanceData l)
+{
     half isHDR = l.m.y + l.ne.y + l.nw.y + l.se.y + l.sw.y;
     return isHDR > 0;
 }
 
 // if my contrast is too low then skip me
-bool ShouldSkipPixel_Contrast (HDRLuminanceData l) {
-    float threshold =
-        max(ContrastThreshold, RelativeThreshold * l.highest);
+bool ShouldSkipPixel_Contrast(HDRLuminanceData l)
+{
+    float threshold = max(ContrastThreshold, RelativeThreshold * l.highest);
     return l.contrast < threshold;
 }
 
 // // // this needs an effective way of reducing the size of the blur
-half3 FXAA_HDRFilter(half2 uv, TEXTURE2D_X(tex), half4 texelSize, half mask)
-{   
-
+half3 FXAA_HDRFilter(half2 uv, TEXTURE2D_X(tex), half4 texelSize)
+{
     half3 input = SAMPLE_TEXTURE2D_X(tex, sampler_LinearClamp, uv).xyz;
-    // return input;
 
     half hdrMask = HDRFilter(input).xxx;
-    if(hdrMask <= 0) {
+    if (hdrMask <= 0)
+    {
         return input;
     }
-    
 
-    HDRLuminanceData l = SampleHDRFilterLuminanceNeighborhood (uv, texelSize, tex); //  we are still getting text into this equation and not enough HDR values
 
+    HDRLuminanceData l = SampleHDRFilterLuminanceNeighborhood(uv, texelSize, tex);
     
-    if (!ShouldSkipPixel_HDRFilter(l)) {
+    if (!ShouldSkipPixel_HDRFilter(l))
+    {
         return SAMPLE_TEXTURE2D_X(tex, sampler_LinearClamp, uv).xyz;
     }
 
@@ -128,12 +133,13 @@ half3 FXAA_HDRFilter(half2 uv, TEXTURE2D_X(tex), half4 texelSize, half mask)
     l.contrast = l.highest - l.lowest;
 
     // should ignore pixel?
-    if (ShouldSkipPixel_Contrast(l)) {
+    if (ShouldSkipPixel_Contrast(l))
+    {
         return input;
     }
 
     half2 dir;
-    dir.x = -((l.nw.x + l.ne.x) - (l.sw.x + l.se.x));
+    dir.x = - ((l.nw.x + l.ne.x) - (l.sw.x + l.se.x));
     dir.y = ((l.nw.x + l.sw.x) - (l.ne.x + l.se.x));
 
     half lumaSum = l.m.x + l.nw.x + l.sw.x + l.se.x + l.ne.x;
@@ -143,35 +149,11 @@ half3 FXAA_HDRFilter(half2 uv, TEXTURE2D_X(tex), half4 texelSize, half mask)
 
     dir = min((FXAA_SPAN_MAX).xx, max((-FXAA_SPAN_MAX).xx, dir * rcpDirMin)) * texelSize.xy;
     
-    #ifdef _FXAA_OFF
-    
-    half3 rgb03 = Fetch(uv, dir * (0.0 / 3.0 - 0.5), tex);
-    half3 rgb13 = Fetch(uv, dir * (1.0 / 3.0 - 0.5), tex);
-    half3 rgb23 = Fetch(uv, dir * (2.0 / 3.0 - 0.5), tex);
-    half3 rgb33 = Fetch(uv, dir * (3.0 / 3.0 - 0.5), tex);
-
-    rgb03 = saturate(rgb03);
-    rgb13 = saturate(rgb13);
-    rgb23 = saturate(rgb23);
-    rgb33 = saturate(rgb33);
-
-    half3 rgbA = 0.5 * (rgb13 + rgb23);
-    half3 rgbB = rgbA * 0.5 + 0.25 * (rgb03 + rgb33);
-
-    half lumaB = LinearRgbToLuminance(rgbB);
-
-    half lumaMin = Min3(l.m.x, l.nw.x, Min3(l.ne.x, l.sw.x, l.se.x));
-    half lumaMax = Max3(l.m.x, l.nw.x, Max3(l.ne.x, l.sw.x, l.se.x));
-
-    half3 color = ((lumaB < lumaMin) || (lumaB > lumaMax)) ? rgbA: rgbB;
-
-    #else
-
     // cheaper and nicer blending
     half3 rgb[4];
 
-    [unroll (4)] for (int i=0; i < 4; i++) 
-    {                
+    [unroll(4)] for (int i = 0; i < 4; i++)
+    {
         rgb[i] = saturate(Fetch(uv, dir * (i / 3.0 - 0.5), tex));
     }
 
@@ -180,81 +162,6 @@ half3 FXAA_HDRFilter(half2 uv, TEXTURE2D_X(tex), half4 texelSize, half mask)
 
     half3 color = (rgbA + rgbB) * 0.5h;
     
-    #endif
 
-    return (color);    
- 
-}
-
-
-half3 FXAA_HDRFilter_NS(half2 uv, TEXTURE2D_X(tex), half4 texelSize, half mask)
-{   
-    #ifdef _FXAA_OFF
-        return SAMPLE_TEXTURE2D_X(tex, sampler_LinearClamp, uv).xyz;
-    #endif
-
-    if(mask <= 0) {
-        return (SAMPLE_TEXTURE2D_X(tex, sampler_LinearClamp, uv).xyz);
-    }
-
-    HDRLuminanceData l = SampleHDRFilterLuminanceNeighborhoodNS (uv, texelSize, tex); //  we are still getting text into this equation and not enough HDR values
-
-    
-    if (!ShouldSkipPixel_HDRFilter(l)) {
-        return SAMPLE_TEXTURE2D_X(tex, sampler_LinearClamp, uv).xyz;
-    }
-
-    l.highest = Max3(l.m.x, l.nw.x, Max3(l.ne.x, l.sw.x, l.se.x));
-    l.lowest = Min3(l.m.x, l.nw.x, Min3(l.ne.x, l.sw.x, l.se.x));
-
-    l.contrast = l.highest - l.lowest;
-
-    // should ignore pixel?
-    if (ShouldSkipPixel_Contrast(l)) {
-        return SAMPLE_TEXTURE2D_X(tex, sampler_LinearClamp, uv).xyz;
-    }
-
-    half2 dir;
-    dir.x = -((l.nw.x + l.ne.x) - (l.sw.x + l.se.x));
-    dir.y = ((l.nw.x + l.sw.x) - (l.ne.x + l.se.x));
-
-    half lumaSum = l.m.x + l.nw.x + l.sw.x + l.se.x + l.ne.x;
-
-    half dirReduce = max(lumaSum * FXAA_REDUCE_MUL, FXAA_REDUCE_MIN);
-    half rcpDirMin = rcp(min(abs(dir.x), abs(dir.y)) + dirReduce);
-
-    dir = min((FXAA_SPAN_MAX).xx, max((-FXAA_SPAN_MAX).xx, dir * rcpDirMin)) * texelSize.xy;
-    
-    // half3 rgb[4];
-
-    // [unroll (4)] for (int i=0; i < 4; i++) 
-    // {                
-    //     rgb[i] = saturate(Fetch(uv, dir * (i / 3.0 - 0.5), tex));
-    // }
-
-    // half3 rgbA = 0.5 * (rgb[1] + rgb[2]);
-    // half3 rgbB = rgbA * 0.5 + 0.25 * (rgb[0] + rgb[3]);
-
-    // half lumaB = LinearRgbToLuminance(rgbB);
-
-    // half3 color = ((lumaB < l.lowest) || (lumaB > l.highest)) ? rgbA : rgbB; // this is either or? maybe we should try a blend...
-
-
-    // cheaper and nicer blending
-    half3 rgb[4];
-
-    [unroll (4)] for (int i=0; i < 4; i++) 
-    {                
-        rgb[i] = Fetch(uv, dir * (i / 3.0 - 0.5), tex);
-    }
-
-    half3 rgbA = 0.5 * (rgb[1] + rgb[2]);
-    half3 rgbB = rgbA * 0.5 + 0.25 * (rgb[0] + rgb[3]);
-
-    half lumaB = LinearRgbToLuminance(rgbB);
-
-    half3 color = (rgbA + rgbB) * 0.5h;
-
-    return (color);    
- 
+    return(color);
 }

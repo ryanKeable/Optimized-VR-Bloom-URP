@@ -77,8 +77,8 @@ namespace UnityEngine.Rendering.Universal
 
 
             // TODO: double check that this is the right format??
-            m_DefaultHDRFormat = GraphicsFormat.R8G8B8A8_SRGB;
-            // m_DefaultHDRFormat = GraphicsFormat.B10G11R11_UFloatPack32;
+            // m_DefaultHDRFormat = GraphicsFormat.R8G8B8A8_SRGB;
+            m_DefaultHDRFormat = GraphicsFormat.B10G11R11_UFloatPack32;
             // m_DefaultHDRFormat = GraphicsFormat.RGBA_ASTC10X10_UFloat;
         }
 

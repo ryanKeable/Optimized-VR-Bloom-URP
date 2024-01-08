@@ -73,7 +73,7 @@
 
         // bloom filter
         color = FilteredColour(color);
-        color = FastTonemap(color);
+        // color = FastTonemap(color);
 
         return half4(color, 1.0h);
     }
@@ -165,7 +165,7 @@
         half4 highMip = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_LinearClamp, uv);
         half3 lowMip = SAMPLE_TEXTURE2D_X(_MainTexLowMip, sampler_LinearClamp, uv).xyz;
         
-        half3 color = highMip.xyz + lowMip * Scatter;
+        half3 color = lerp(highMip, lowMip, Scatter);
         
         return half4(color, highMip.a);
     }
