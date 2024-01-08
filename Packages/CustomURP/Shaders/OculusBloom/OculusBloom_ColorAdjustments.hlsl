@@ -92,7 +92,7 @@ void WhitePreservingLumaBasedReinhardToneMapping_half(half3 color, out half3 val
     value = color;
 }
 
-half3 NeutralTonemap(half3 x)
+half3 RDKNeutralTonemap(half3 x)
 {
     // Tonemap
     const half a = 0.2;
@@ -114,7 +114,7 @@ half3 NeutralTonemap(half3 x)
     return x;
 }
 
-float3 CheaperAcesTonemap(float3 aces)
+float3 RDKAcesTonemap(float3 aces)
 {
 
     // --- Glow module --- //
@@ -191,9 +191,9 @@ half3 ApplyToneMapping(half3 input)
 {
     #if _TONEMAP_ACES
         float3 aces = unity_to_ACES(input);
-        input = CheaperAcesTonemap(aces);
+        input = RDKAcesTonemap(aces);
     #elif _TONEMAP_NEUTRAL
-        input = NeutralTonemap(input);
+        input = RDKNeutralTonemap(input);
     #endif
 
     return saturate(input);
