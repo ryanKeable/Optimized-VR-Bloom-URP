@@ -71,12 +71,14 @@ namespace UnityEngine.Rendering.Universal
         TransparentSettingsPass m_TransparentSettingsPass;
         DrawObjectsPass m_RenderTransparentForwardPass;
         InvokeOnRenderObjectCallbackPass m_OnRenderObjectCallbackPass;
+        CapturePass m_CapturePass;
 
 
 
         // Oculus Bloom Specific Passes
         OculusBloomPostProcessPass m_OculusBloomPostProcessPass;
-        CapturePass m_CapturePass;
+
+
 #if ENABLE_VR && ENABLE_XR_MODULE
         XROcclusionMeshPass m_XROcclusionMeshPass;
         CopyDepthPass m_XRCopyDepthPass;
@@ -317,49 +319,16 @@ namespace UnityEngine.Rendering.Universal
         /// <inheritdoc />
         protected override void Dispose(bool disposing)
         {
-            m_ForwardLights.Cleanup();
-            m_GBufferPass?.Dispose();
-            m_PostProcessPasses.Dispose();
             m_OculusBloomPostProcessPass?.Dispose();
-            m_DrawOffscreenUIPass?.Dispose();
-            m_DrawOverlayUIPass?.Dispose();
-
-            m_XRTargetHandleAlias?.Release();
-
             ReleaseRenderTargets();
 
             base.Dispose(disposing);
-            CoreUtils.Destroy(m_BlitMaterial);
-            CoreUtils.Destroy(m_BlitHDRMaterial);
-            CoreUtils.Destroy(m_CopyDepthMaterial);
-            CoreUtils.Destroy(m_SamplingMaterial);
-            CoreUtils.Destroy(m_StencilDeferredMaterial);
-            CoreUtils.Destroy(m_CameraMotionVecMaterial);
-            CoreUtils.Destroy(m_ObjectMotionVecMaterial);
 
-            CleanupRenderGraphResources();
-
-            LensFlareCommonSRP.Dispose();
         }
 
         internal override void ReleaseRenderTargets()
         {
-            m_ColorBufferSystem.Dispose();
-            if (m_DeferredLights != null && !m_DeferredLights.UseRenderPass)
-                m_GBufferPass?.Dispose();
-
-            m_PostProcessPasses.ReleaseRenderTargets();
-            m_MainLightShadowCasterPass?.Dispose();
-            m_AdditionalLightsShadowCasterPass?.Dispose();
-
-            m_CameraDepthAttachment?.Release();
-            m_DepthTexture?.Release();
-            m_NormalsTexture?.Release();
-            m_DecalLayersTexture?.Release();
-            m_OpaqueColor?.Release();
-            m_MotionVectorColor?.Release();
-            m_MotionVectorDepth?.Release();
-            hasReleasedRTs = true;
+            base.ReleaseRenderTargets();
         }
 
         private void SetupFinalPassDebug(ref CameraData cameraData)

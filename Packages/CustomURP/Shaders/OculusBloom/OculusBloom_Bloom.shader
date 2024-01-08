@@ -23,9 +23,9 @@
     half4 _Bloom_Params; // x: scatter, y: threshold, z: threshold knee, w: threshold numerator
 
     #define Scatter                 _Bloom_Params.x
-    #define Threshold               _Bloom_Params.y
-    #define ThresholdKnee           _Bloom_Params.z
-    #define ThresholdNumerator      _Bloom_Params.z
+    #define ClampMax               _Bloom_Params.y
+    #define Threshold           _Bloom_Params.z
+    #define ThresholdKnee      _Bloom_Params.z
 
     #define LinearBlurTaps          3
     #define KernelSize          3
@@ -44,13 +44,17 @@
 
     half3 FilteredColour(half3 color)
     {
+        // User controlled clamp to limit crazy high broken spec
+        color = min(ClampMax, color);
+
         // Thresholding
         half brightness = Max3(color.r, color.g, color.b);
         half softness = clamp((brightness - Threshold) + ThresholdKnee, 0.0, ThresholdKnee);
-        softness = (softness * softness) / ThresholdNumerator;
+        softness = (softness * softness) / (4.0 * ThresholdKnee + 1e-4);
         half multiplier = max(brightness - Threshold, softness) / max(brightness, 1e-4);
         
         color *= multiplier;
+        color = max(color, 0);
 
         return color;
     }

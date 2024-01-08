@@ -33,11 +33,13 @@ namespace UnityEngine.Rendering.Universal
         Tonemapping m_Tonemapping;
 
         // Misc
-        const int k_MaxPyramidSize = 16;
+        const int k_MaxPyramidSize = 12;
         readonly GraphicsFormat m_DefaultHDRFormat;
 
         Material m_FinalBlitMaterial;
         Material m_BloomMaterial;
+
+
 
         /// <summary>
         /// Creates a new <c>OculusBloomPostProcessPass</c> instance.
@@ -73,7 +75,11 @@ namespace UnityEngine.Rendering.Universal
                 m_BloomMipDown[i] = RTHandles.Alloc(ShaderConstants._BloomMipDown[i], name: "_BloomMipDown" + i);
             }
 
+
+            // TODO: double check that this is the right format??
             m_DefaultHDRFormat = GraphicsFormat.R8G8B8A8_SRGB;
+            // m_DefaultHDRFormat = GraphicsFormat.B10G11R11_UFloatPack32;
+            // m_DefaultHDRFormat = GraphicsFormat.RGBA_ASTC10X10_UFloat;
         }
 
 
@@ -103,6 +109,7 @@ namespace UnityEngine.Rendering.Universal
             m_Descriptor.autoGenerateMips = false;
             m_Source = source;
             m_Destination = k_CameraTarget;
+
         }
 
         /// <inheritdoc/>
@@ -156,31 +163,6 @@ namespace UnityEngine.Rendering.Universal
             ref ScriptableRenderer renderer = ref cameraData.renderer;
             bool isSceneViewCamera = cameraData.isSceneViewCamera;
 
-            // Don't use these directly unless you have a good reason to, use GetSource() and
-            // GetDestination() instead
-            RTHandle source = m_Source;
-            RTHandle destination = null;
-
-            RTHandle GetSource() => source;
-
-
-            RTHandle GetDestination()
-            {
-                if (destination == null)
-                {
-                    RenderingUtils.ReAllocateIfNeeded(ref m_TempTarget, GetCompatibleDescriptor(), FilterMode.Bilinear, TextureWrapMode.Clamp, name: "_TempTarget");
-                    destination = m_TempTarget;
-                }
-                else if (destination == m_Source && m_Descriptor.msaaSamples > 1)
-                {
-                    // Avoid using m_Source.id as new destination, it may come with a depth buffer that we don't want, may have MSAA that we don't want etc
-                    RenderingUtils.ReAllocateIfNeeded(ref m_TempTarget2, GetCompatibleDescriptor(), FilterMode.Bilinear, TextureWrapMode.Clamp, name: "_TempTarget2");
-                    destination = m_TempTarget2;
-                }
-                return destination;
-            }
-
-
             // Setup projection matrix for cmd.DrawMesh()
             cmd.SetGlobalMatrix(ShaderConstants._FullscreenProjMat, GL.GetGPUProjectionMatrix(Matrix4x4.identity, true));
 
@@ -198,8 +180,13 @@ namespace UnityEngine.Rendering.Universal
                 if (bloomActive)
                 {
                     using (new ProfilingScope(cmd, ProfilingSampler.Get(URPProfileId.Bloom)))
-                        SetupBloom(cmd, GetSource());
+                        SetupBloom(cmd, m_Source);
                 }
+
+                // Done with Uber, blit it
+                var colorLoadAction = RenderBufferLoadAction.DontCare;
+                if (m_Destination == k_CameraTarget && !cameraData.isDefaultViewport)
+                    colorLoadAction = RenderBufferLoadAction.Load;
 
                 // Note: We rendering to "camera target" we need to get the cameraData.targetTexture as this will get the targetTexture of the camera stack.
                 // Overlay cameras need to output to the target described in the base camera while doing camera stack.
@@ -209,65 +196,58 @@ namespace UnityEngine.Rendering.Universal
                     cameraTargetID = cameraData.xr.renderTarget;
 #endif
 
-                cmd.SetGlobalTexture("_BlitTex", source);
+                // Resolve To Camera Target
 
+                // Get RTHandle alias to use RTHandle apis
+                RenderTargetIdentifier cameraTarget = cameraData.targetTexture != null ? new RenderTargetIdentifier(cameraData.targetTexture) : cameraTargetID;
+                RTHandleStaticHelpers.SetRTHandleStaticWrapper(cameraTarget);
+                var cameraTargetHandle = RTHandleStaticHelpers.s_RTHandleWrapper;
 
-                if (cameraData.isSceneViewCamera)
-                {
-                    Blitter.BlitCameraTexture(cmd, GetDestination(), m_Destination, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare, m_FinalBlitMaterial, m_Destination.rt?.filterMode == FilterMode.Bilinear ? 1 : 0);
-                }
-                else
-                {
-                    Blitter.BlitCameraTexture(cmd, GetSource(), m_Destination, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare, m_FinalBlitMaterial, 0);
-                }
-
-                if (m_Bloom != null && m_Bloom.active)
-                {
-                    cmd.ReleaseTemporaryRT(ShaderConstants._BloomMipUp[0]);
-                    cmd.ReleaseTemporaryRT(ShaderConstants._Bloom_Texture);
-                }
+                RenderingUtils.FinalBlit(cmd, ref cameraData, m_Source, cameraTargetHandle, colorLoadAction, RenderBufferStoreAction.Store, m_FinalBlitMaterial, 0);
+                renderer.ConfigureCameraColorTarget(cameraTargetHandle);
 
             }
         }
 
         #region Bloom
 
-        int tw;
-        int th;
-        int maxSize;
-        int iterations;
-        int mipCount;
-        float threshold;
-        float thresholdKnee;
-        float thresholdNumerator;
-        float scatter;
-        const float bloomRenderSizeScalar = 0.5f;
 
-        void ConfigureBloom()
-        {
-            tw = m_Descriptor.width;// >> 1;
-            th = m_Descriptor.height;// >> 1;
 
-            // Determine the iteration count
-            maxSize = Mathf.Max(tw, th);
-            iterations = Mathf.FloorToInt(Mathf.Log(maxSize, 2f) - 1);
-            mipCount = Mathf.Clamp(iterations, 1, k_MaxPyramidSize);
-
-            // Pre-filtering parameters
-            threshold = Mathf.GammaToLinearSpace(m_Bloom.threshold.value);
-            thresholdKnee = threshold * 0.5f;
-            thresholdNumerator = 4.0f * thresholdKnee + 0.0001f;
-            scatter = Mathf.Lerp(0.05f, 0.95f, m_Bloom.scatter.value);
-
-            // Material setup
-            m_BloomMaterial.SetVector(ShaderConstants._Bloom_Params, new Vector4(scatter, threshold, thresholdKnee, thresholdNumerator));
-            m_FinalBlitMaterial.SetFloat(ShaderConstants._Bloom_Intenisty, m_Bloom.intensity.value);
-        }
 
         void SetupBloom(CommandBuffer cmd, RTHandle source)
         {
-            ConfigureBloom();
+            // Start at half-res
+            int downres = 1;
+            switch (m_Bloom.downscale.value)
+            {
+                case BloomDownscaleMode.Half:
+                    downres = 1;
+                    break;
+                case BloomDownscaleMode.Quarter:
+                    downres = 2;
+                    break;
+                default:
+                    throw new System.ArgumentOutOfRangeException();
+            }
+            int tw = m_Descriptor.width >> downres;
+            int th = m_Descriptor.height >> downres;
 
+
+            // Determine the iteration count
+            int maxSize = Mathf.Max(tw, th);
+            int iterations = Mathf.FloorToInt(Mathf.Log(maxSize, 2f) - 1);
+            int mipCount = Mathf.Clamp(iterations, 1, m_Bloom.maxIterations.value);
+
+
+            // Pre-filtering parameters
+            float clamp = m_Bloom.clamp.value;
+            float threshold = Mathf.GammaToLinearSpace(m_Bloom.threshold.value);
+            float thresholdKnee = threshold * 0.5f; // Hardcoded soft knee
+            float scatter = Mathf.Lerp(0.05f, 0.95f, m_Bloom.scatter.value);
+
+            // Material setup
+            m_BloomMaterial.SetVector(ShaderConstants._Bloom_Params, new Vector4(scatter, clamp, threshold, thresholdKnee));
+            m_FinalBlitMaterial.SetFloat(ShaderConstants._Bloom_Intenisty, m_Bloom.intensity.value);
             var desc = GetStereoCompatibleDescriptor(tw, th, m_DefaultHDRFormat);
 
             for (int i = 0; i < mipCount; i++)
@@ -280,7 +260,7 @@ namespace UnityEngine.Rendering.Universal
 
 
             // cmd.Blit(source, BlitDstDiscardContent(cmd, ShaderConstants._BloomMipDown[0]), m_BloomMaterial, 0);
-            Blitter.BlitCameraTexture(cmd, source, m_BloomMipDown[0], RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, m_BloomMaterial, 0);
+            Blitter.BlitCameraTexture(cmd, source, m_BloomMipDown[0], RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare, m_BloomMaterial, 0);
 
             // Downsample - gaussian pyramid
             var lastDown = m_BloomMipDown[0];
@@ -289,8 +269,8 @@ namespace UnityEngine.Rendering.Universal
                 // Classic two pass gaussian blur - use mipUp as a temporary target
                 //   First pass does 2x downsampling + 9-tap gaussian
                 //   Second pass does 9-tap gaussian using a 5-tap filter + bilinear filtering
-                Blitter.BlitCameraTexture(cmd, lastDown, m_BloomMipUp[i], RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, m_BloomMaterial, 1);
-                Blitter.BlitCameraTexture(cmd, m_BloomMipUp[i], m_BloomMipDown[i], RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, m_BloomMaterial, 2);
+                Blitter.BlitCameraTexture(cmd, lastDown, m_BloomMipUp[i], RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare, m_BloomMaterial, 1);
+                Blitter.BlitCameraTexture(cmd, m_BloomMipUp[i], m_BloomMipDown[i], RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare, m_BloomMaterial, 2);
 
                 lastDown = m_BloomMipDown[i];
             }
@@ -303,7 +283,7 @@ namespace UnityEngine.Rendering.Universal
                 var dst = m_BloomMipUp[i];
 
                 cmd.SetGlobalTexture(ShaderConstants._MainTexLowMip, lowMip);
-                Blitter.BlitCameraTexture(cmd, highMip, dst, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, m_BloomMaterial, 3);
+                Blitter.BlitCameraTexture(cmd, highMip, dst, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare, m_BloomMaterial, 3);
             }
 
 
