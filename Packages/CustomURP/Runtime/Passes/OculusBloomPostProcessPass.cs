@@ -25,11 +25,11 @@ namespace UnityEngine.Rendering.Universal
         PostProcessData m_Data;
 
 
-        Bloom m_Bloom;
+        OculusBloom m_Bloom;
+        OculusBloomColorAdjustments m_ColorAdjustments;
 
         // TODO: Add custom color adjustments here
         // TODO: Add custom tonemapping here
-        ColorAdjustments m_ColorAdjustments;
         Tonemapping m_Tonemapping;
 
         // Misc
@@ -130,9 +130,8 @@ namespace UnityEngine.Rendering.Universal
             // Start by pre-fetching all builtin effect settings we need
             // Some of the color-grading settings are only used in the color grading lut pass
             var stack = VolumeManager.instance.stack;
-            m_Bloom = stack.GetComponent<Bloom>();
-            m_ColorAdjustments = stack.GetComponent<ColorAdjustments>();
-            m_Tonemapping = stack.GetComponent<Tonemapping>();
+            m_Bloom = stack.GetComponent<OculusBloom>();
+            m_ColorAdjustments = stack.GetComponent<OculusBloomColorAdjustments>();
 
             var cmd = renderingData.commandBuffer;
             using (new ProfilingScope(cmd, m_ProfilingRenderPostProcessing))
@@ -161,76 +160,36 @@ namespace UnityEngine.Rendering.Universal
         {
             ref CameraData cameraData = ref renderingData.cameraData;
             ref ScriptableRenderer renderer = ref cameraData.renderer;
-            bool isSceneViewCamera = cameraData.isSceneViewCamera;
 
             // Setup projection matrix for cmd.DrawMesh()
             cmd.SetGlobalMatrix(ShaderConstants._FullscreenProjMat, GL.GetGPUProjectionMatrix(Matrix4x4.identity, true));
-
-
-            ProfilingSampler oculusPPSampler = new ProfilingSampler("OculusBloom PP Sampler");
-
-            // Combined post-processing stack
+            ProfilingSampler oculusPPSampler = new ProfilingSampler("OculusBloom PostProcessing");
 
             using (new ProfilingScope(cmd, oculusPPSampler))
             {
-                // Reset uber keywords
 
                 // Bloom goes first
-                bool bloomActive = m_Bloom.IsActive();
+                ProfilingSampler oculusBloomSampler = new ProfilingSampler("OculusBloom OptimizedBloom");
+
+                bool bloomActive = m_Bloom != null && m_Bloom.IsActive();
                 if (bloomActive)
                 {
-                    using (new ProfilingScope(cmd, ProfilingSampler.Get(URPProfileId.Bloom)))
+                    using (new ProfilingScope(cmd, oculusBloomSampler))
                         SetupBloom(cmd, m_Source);
                 }
 
-                // Done with Uber, blit it
-                var colorLoadAction = RenderBufferLoadAction.DontCare;
-                if (m_Destination == k_CameraTarget && !cameraData.isDefaultViewport)
-                    colorLoadAction = RenderBufferLoadAction.Load;
-
-                // Note: We rendering to "camera target" we need to get the cameraData.targetTexture as this will get the targetTexture of the camera stack.
-                // Overlay cameras need to output to the target described in the base camera while doing camera stack.
-                RenderTargetIdentifier cameraTargetID = BuiltinRenderTextureType.CameraTarget;
-#if ENABLE_VR && ENABLE_XR_MODULE
-                if (cameraData.xr.enabled)
-                    cameraTargetID = cameraData.xr.renderTarget;
-#endif
-
-                // Resolve To Camera Target
-
-                // Get RTHandle alias to use RTHandle apis
-                RenderTargetIdentifier cameraTarget = cameraData.targetTexture != null ? new RenderTargetIdentifier(cameraData.targetTexture) : cameraTargetID;
-                RTHandleStaticHelpers.SetRTHandleStaticWrapper(cameraTarget);
-                var cameraTargetHandle = RTHandleStaticHelpers.s_RTHandleWrapper;
-
-                RenderingUtils.FinalBlit(cmd, ref cameraData, m_Source, cameraTargetHandle, colorLoadAction, RenderBufferStoreAction.Store, m_FinalBlitMaterial, 0);
-                renderer.ConfigureCameraColorTarget(cameraTargetHandle);
-
             }
+
+            ResolveToScreen(cmd, renderer, m_Source, cameraData);
         }
 
         #region Bloom
 
-
-
-
         void SetupBloom(CommandBuffer cmd, RTHandle source)
         {
             // Start at half-res
-            int downres = 1;
-            switch (m_Bloom.downscale.value)
-            {
-                case BloomDownscaleMode.Half:
-                    downres = 1;
-                    break;
-                case BloomDownscaleMode.Quarter:
-                    downres = 2;
-                    break;
-                default:
-                    throw new System.ArgumentOutOfRangeException();
-            }
-            int tw = m_Descriptor.width >> downres;
-            int th = m_Descriptor.height >> downres;
+            int tw = m_Descriptor.width >> 1;
+            int th = m_Descriptor.height >> 1;
 
 
             // Determine the iteration count
@@ -248,6 +207,8 @@ namespace UnityEngine.Rendering.Universal
             // Material setup
             m_BloomMaterial.SetVector(ShaderConstants._Bloom_Params, new Vector4(scatter, clamp, threshold, thresholdKnee));
             m_FinalBlitMaterial.SetFloat(ShaderConstants._Bloom_Intenisty, m_Bloom.intensity.value);
+            m_FinalBlitMaterial.SetColor(ShaderConstants._Bloom_Tint, m_Bloom.tint.value);
+
             var desc = GetStereoCompatibleDescriptor(tw, th, m_DefaultHDRFormat);
 
             for (int i = 0; i < mipCount; i++)
@@ -303,7 +264,73 @@ namespace UnityEngine.Rendering.Universal
 
 
 
-        #region Color Grading
+        #region Color Adjustments
+
+        void SetupColorAdjustments()
+        {
+            m_FinalBlitMaterial.EnableKeyword(ShaderConstants.ColorAdjusments);
+
+            var lmsColorBalance = ColorUtils.ColorBalanceToLMSCoeffs(m_ColorAdjustments.temperature.value, m_ColorAdjustments.tint.value);
+            var adjustmentParams = new Vector4(m_ColorAdjustments.gamma.value / 100f + 1f, m_ColorAdjustments.saturation.value / 100f + 1f, m_ColorAdjustments.contrast.value / 100f + 1f, 0.0f);
+
+            m_FinalBlitMaterial.SetVector(ShaderConstants._ColorBalance, lmsColorBalance);
+            m_FinalBlitMaterial.SetVector(ShaderConstants._ColorFilter, m_ColorAdjustments.colorFilter.value.linear);
+            m_FinalBlitMaterial.SetVector(ShaderConstants._AdjustmentParams, adjustmentParams);
+
+
+            m_FinalBlitMaterial.DisableKeyword(ShaderKeywordStrings.TonemapNeutral);
+            m_FinalBlitMaterial.DisableKeyword(ShaderKeywordStrings.TonemapACES);
+
+            switch (m_ColorAdjustments.mode.value)
+            {
+                case TonemappingMode.Neutral: m_FinalBlitMaterial.EnableKeyword(ShaderKeywordStrings.TonemapNeutral); break;
+                case TonemappingMode.ACES: m_FinalBlitMaterial.EnableKeyword(ShaderKeywordStrings.TonemapACES); break;
+                default: break; // None
+            }
+
+        }
+
+        #endregion
+
+        #region Final Blit
+
+        void ResolveToScreen(CommandBuffer cmd, ScriptableRenderer renderer, RTHandle source, CameraData cameraData)
+        {
+            ProfilingSampler oculusColorGradingSampler = new ProfilingSampler("OculusBloom ResolveToScreen");
+            using (new ProfilingScope(cmd, oculusColorGradingSampler))
+            {
+                bool colorGradingActive = m_ColorAdjustments != null && m_ColorAdjustments.IsActive();
+                if (colorGradingActive)
+                {
+                    SetupColorAdjustments();
+                }
+                else
+                {
+                    m_FinalBlitMaterial.DisableKeyword(ShaderConstants.ColorAdjusments);
+                }
+
+                var colorLoadAction = RenderBufferLoadAction.DontCare;
+                if (m_Destination == k_CameraTarget && !cameraData.isDefaultViewport)
+                    colorLoadAction = RenderBufferLoadAction.Load;
+
+                // Note: We rendering to "camera target" we need to get the cameraData.targetTexture as this will get the targetTexture of the camera stack.
+                // Overlay cameras need to output to the target described in the base camera while doing camera stack.
+                RenderTargetIdentifier cameraTargetID = BuiltinRenderTextureType.CameraTarget;
+#if ENABLE_VR && ENABLE_XR_MODULE
+                if (cameraData.xr.enabled)
+                    cameraTargetID = cameraData.xr.renderTarget;
+#endif
+
+                // Get RTHandle alias to use RTHandle apis
+                RenderTargetIdentifier cameraTarget = cameraData.targetTexture != null ? new RenderTargetIdentifier(cameraData.targetTexture) : cameraTargetID;
+                RTHandleStaticHelpers.SetRTHandleStaticWrapper(cameraTarget);
+                var cameraTargetHandle = RTHandleStaticHelpers.s_RTHandleWrapper;
+
+                RenderingUtils.FinalBlit(cmd, ref cameraData, m_Source, cameraTargetHandle, colorLoadAction, RenderBufferStoreAction.Store, m_FinalBlitMaterial, 0);
+                renderer.ConfigureCameraColorTarget(cameraTargetHandle);
+
+            }
+        }
 
         #endregion
 
@@ -341,12 +368,19 @@ namespace UnityEngine.Rendering.Universal
         // Precomputed shader ids to same some CPU cycles (mostly affects mobile)
         static class ShaderConstants
         {
-
             public static readonly int _MainTexLowMip = Shader.PropertyToID("_MainTexLowMip");
             public static readonly int _Bloom_Params = Shader.PropertyToID("_Bloom_Params");
             public static readonly int _Bloom_Intenisty = Shader.PropertyToID("_Bloom_Intensity");
+            public static readonly int _Bloom_Tint = Shader.PropertyToID("_Bloom_Tint");
             public static readonly int _Bloom_Texture = Shader.PropertyToID("_Bloom_Texture");
             public static readonly int _FullscreenProjMat = Shader.PropertyToID("_FullscreenProjMat");
+
+            public static readonly int _ColorBalance = Shader.PropertyToID("_ColorBalance");
+            public static readonly int _ColorFilter = Shader.PropertyToID("_ColorFilter");
+            public static readonly int _AdjustmentParams = Shader.PropertyToID("_ColorAdjustmentParams");
+
+            public const string ColorAdjusments = "_COLORADJUSTMENTS";
+
             public static int[] _BloomMipUp;
             public static int[] _BloomMipDown;
         }

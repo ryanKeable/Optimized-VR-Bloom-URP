@@ -3,6 +3,7 @@ Shader "OculusBloom/FinalBlit"
 
     HLSLINCLUDE
 
+
     #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
     #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Filtering.hlsl"
     #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/ScreenCoordOverride.hlsl"
@@ -10,11 +11,13 @@ Shader "OculusBloom/FinalBlit"
     #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
     #include "Packages/com.unity.render-pipelines.universal/Shaders/PostProcessing/Common.hlsl"
     #include "OculusBloom_FXAA.hlsl"
+    #include "OculusBloom_ColorAdjustments.hlsl"
 
     float4 _BlitTexture_TexelSize;
 
     TEXTURE2D_X(_Bloom_Texture);
     
+    half3 _Bloom_Tint;
     half _Bloom_Intensity;
     
     half4 Frag(Varyings input) : SV_Target
@@ -25,8 +28,10 @@ Shader "OculusBloom/FinalBlit"
         half3 bloom = SAMPLE_TEXTURE2D_X(_Bloom_Texture, sampler_LinearClamp, SCREEN_COORD_REMOVE_SCALEBIAS(uv));
         half3 color = FXAA_HDRFilter(uv, _BlitTexture, _BlitTexture_TexelSize);
 
-        bloom.rgb *= _Bloom_Intensity.xxx;
+        bloom.rgb *= _Bloom_Intensity.xxx * _Bloom_Tint;
         color += bloom.rgb;
+
+        color = ApplyColorAdjustments(color);
 
         return half4(color, 1.0);
     }
@@ -54,7 +59,9 @@ Shader "OculusBloom/FinalBlit"
 
             #pragma fragmentoption ARB_precision_hint_fastest
             
-
+            #pragma multi_compile_local_fragment _ _COLORADJUSTMENTS
+            #pragma multi_compile_local_fragment _ _TONEMAP_ACES _TONEMAP_NEUTRAL
+            
             ENDHLSL
 
         }
