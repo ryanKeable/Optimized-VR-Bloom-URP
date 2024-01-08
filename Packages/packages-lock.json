@@ -1,13 +1,13 @@
 {
   "dependencies": {
     "com.rdk.shader-library": {
-      "version": "https://github.com/ryanKeable/Unity-Shader-Lib.git",
+      "version": "git+https://x-oauth-basic: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@github.com/ryanKeable/Unity-Shader-Lib.git?",
       "depth": 0,
       "source": "git",
       "dependencies": {
         "com.unity.shadergraph": "12.1.11"
       },
-      "hash": "e0501cf649a58418ef198a03881ce470ae2da84b"
+      "hash": "64a5bdc7e12d1011e6a6c249778a05ae55ead58f"
     },
     "com.unity.burst": {
       "version": "1.8.9",
@@ -21,6 +21,13 @@
     "com.unity.collab-proxy": {
       "version": "2.2.0",
       "depth": 0,
+      "source": "registry",
+      "dependencies": {},
+      "url": "https://packages.unity.com"
+    },
+    "com.unity.editorcoroutines": {
+      "version": "1.0.0",
+      "depth": 2,
       "source": "registry",
       "dependencies": {},
       "url": "https://packages.unity.com"
@@ -162,6 +169,24 @@
       },
       "url": "https://packages.unity.com"
     },
+    "com.unity.xr.arfoundation": {
+      "version": "5.1.0",
+      "depth": 1,
+      "source": "registry",
+      "dependencies": {
+        "com.unity.editorcoroutines": "1.0.0",
+        "com.unity.inputsystem": "1.3.0",
+        "com.unity.xr.core-utils": "2.2.1",
+        "com.unity.xr.management": "4.0.1",
+        "com.unity.ugui": "1.0.0",
+        "com.unity.mathematics": "1.2.5",
+        "com.unity.modules.particlesystem": "1.0.0",
+        "com.unity.modules.ui": "1.0.0",
+        "com.unity.modules.unityanalytics": "1.0.0",
+        "com.unity.modules.unitywebrequest": "1.0.0"
+      },
+      "url": "https://packages.unity.com"
+    },
     "com.unity.xr.core-utils": {
       "version": "2.2.3",
       "depth": 1,
@@ -190,6 +215,16 @@
         "com.unity.modules.vr": "1.0.0",
         "com.unity.modules.xr": "1.0.0",
         "com.unity.xr.legacyinputhelpers": "2.1.7"
+      },
+      "url": "https://packages.unity.com"
+    },
+    "com.unity.xr.meta-openxr": {
+      "version": "1.0.1",
+      "depth": 0,
+      "source": "registry",
+      "dependencies": {
+        "com.unity.xr.openxr": "1.7.0",
+        "com.unity.xr.arfoundation": "5.1.0-pre.6"
       },
       "url": "https://packages.unity.com"
     },
