@@ -975,8 +975,11 @@ namespace UnityEngine.Rendering.Universal
                 EnqueuePass(m_DrawOffscreenUIPass);
             }
 
-            m_OculusBloomPostProcessPass.Setup(cameraTargetDescriptor, m_ActiveCameraColorAttachment);
-            EnqueuePass(m_OculusBloomPostProcessPass);
+            if (cameraData.cameraType != CameraType.Preview)
+            {
+                m_OculusBloomPostProcessPass.Setup(cameraTargetDescriptor, m_ActiveCameraColorAttachment);
+                EnqueuePass(m_OculusBloomPostProcessPass);
+            }
 
 #if UNITY_EDITOR
             if (isSceneViewOrPreviewCamera || (isGizmosEnabled && lastCameraInTheStack))
