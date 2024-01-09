@@ -28,10 +28,9 @@ half3 Exposure(half3 input, half value)
 
 half3 Contrast(half3 input, half value)
 {
-    half midpoint = pow(0.33, 2.4);
-    half3 colour = (input - midpoint) * value + midpoint;
-
-    return colour;
+    float3 colorLog = LinearToLogC(input);
+    colorLog = (colorLog - ACEScc_MIDGRAY) * value + ACEScc_MIDGRAY;
+    return LogCToLinear(colorLog);
 }
 
 half3 Saturation(half3 input, half value)
@@ -46,11 +45,13 @@ half3 Saturation(half3 input, half value)
 
 half3 ColorFilter(half3 input, half3 value)
 {
+    // Color filter is just an unclipped multiplier
     return input * value;
 }
 
 half3 WhiteBalance(half3 c)
 {
+    // White balance in LMS space
     half3 lms = LinearToLMS(c);
     lms *= COLORBALANCE;
     return LMSToLinear(lms);
@@ -206,10 +207,14 @@ half3 ApplyColorAdjustments(half3 input)
     #endif
 
     #if _COLORADJUSTMENTS
-        input = Contrast(input, CONTRAST);
-        input = Saturation(input, SATURATION);
-        input = ColorFilter(input, COLORFILTER);
         input = WhiteBalance(input);
+        input = Contrast(input, CONTRAST);
+        input = ColorFilter(input, COLORFILTER);
+
+        // Do NOT feed negative values to the following color ops
+        input = max(0.0, input);
+        
+        input = Saturation(input, SATURATION);
         input = GammaCorrection(input, GAMMA);
     #endif
 
