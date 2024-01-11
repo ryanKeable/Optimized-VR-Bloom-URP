@@ -342,7 +342,7 @@ namespace UnityEngine.Rendering.Universal
 #if UNITY_EDITOR
                 RenderingUtils.FinalBlit(cmd, ref cameraData, m_Source, cameraTargetHandle, colorLoadAction, RenderBufferStoreAction.Store, m_FinalBlitMaterial, 0);
 #else
-                RenderingUtils.FinalBlit(cmd, ref cameraData, m_Source, cameraTargetHandle, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare, m_FinalBlitMaterial, 0);
+                RenderingUtils.FinalBlit(cmd, ref cameraData, m_Source, cameraTargetHandle, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, m_FinalBlitMaterial, 0);
 #endif
                 renderer.ConfigureCameraColorTarget(cameraTargetHandle);
 
