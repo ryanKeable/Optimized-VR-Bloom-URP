@@ -283,17 +283,21 @@ namespace UnityEngine.Rendering.Universal
                 case TonemappingMode.Neutral:
                     {
                         m_FinalBlitMaterial.EnableKeyword(ShaderKeywordStrings.TonemapNeutral);
+                        m_FinalBlitMaterial.DisableKeyword(ShaderKeywordStrings.TonemapACES);
+
                         break;
                     }
                 case TonemappingMode.ACES:
                     {
                         m_FinalBlitMaterial.EnableKeyword(ShaderKeywordStrings.TonemapACES);
+                        m_FinalBlitMaterial.DisableKeyword(ShaderKeywordStrings.TonemapNeutral);
+
                         break;
                     }
                 default:
                     {
                         m_FinalBlitMaterial.DisableKeyword(ShaderKeywordStrings.TonemapNeutral);
-                        m_FinalBlitMaterial.DisableKeyword(ShaderKeywordStrings.TonemapNeutral);
+                        m_FinalBlitMaterial.DisableKeyword(ShaderKeywordStrings.TonemapACES);
                         break; // None
                     }
             }

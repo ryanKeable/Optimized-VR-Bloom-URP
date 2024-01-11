@@ -1,14 +1,5 @@
 {
   "dependencies": {
-    "com.rdk.shader-library": {
-      "version": "git+https://x-oauth-basic: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@github.com/ryanKeable/Unity-Shader-Lib.git?",
-      "depth": 0,
-      "source": "git",
-      "dependencies": {
-        "com.unity.shadergraph": "12.1.11"
-      },
-      "hash": "64a5bdc7e12d1011e6a6c249778a05ae55ead58f"
-    },
     "com.unity.burst": {
       "version": "1.8.9",
       "depth": 1,
@@ -92,7 +83,7 @@
       }
     },
     "com.unity.render-pipelines.universal": {
-      "version": "file:CustomURP",
+      "version": "file:OptimizedPostProcessingURP",
       "depth": 0,
       "source": "embedded",
       "dependencies": {

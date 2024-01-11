@@ -1,6 +1,5 @@
 {
   "dependencies": {
-    "com.rdk.shader-library": "git+https://x-oauth-basic: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@github.com/ryanKeable/Unity-Shader-Lib.git?",
     "com.unity.collab-proxy": "2.2.0",
     "com.unity.ide.rider": "3.0.25",
     "com.unity.ide.visualstudio": "2.0.21",
