@@ -1,6 +1,6 @@
 #include "Packages/com.unity.render-pipelines.universal/Shaders/PostProcessing/Common.hlsl"
 
-#define HDRColorThreshold (0.8h)
+#define HDRColorThreshold (0.6h)
 #define FilteredHDRMaskThreshold (1.175h)
 #define FilteredHDRMaskThresholdKnee (0.5h)
 
@@ -25,7 +25,7 @@ half LinearRgbToLuminance(half3 linearRgb)
 //cheap filter
 half HDRFilter(half3 color)
 {
-    half brightness = Max3(color.r, color.g, color.b);
+    half brightness = Min3(color.r, color.g, color.b);
     return brightness - HDRColorThreshold;
 }
 
@@ -45,7 +45,7 @@ half FilteredHDRMask(half mask)
 half3 Fetch(float2 coords, float2 offset, TEXTURE2D_X(tex))
 {
     float2 uv = coords + offset;
-    return(SAMPLE_TEXTURE2D_X(tex, sampler_LinearClamp, uv).xyz);
+    return(SAMPLE_TEXTURE2D_X(tex, sampler_PointClamp, uv).xyz);
 }
 
 // store the luma in the x channel and the hdr value in the y
@@ -55,7 +55,7 @@ half2 SampleHDRFilterLuminance(half2 uv, half4 texelSize, TEXTURE2D_X(tex), int 
     half luma = 0.0;
 
     uv += texelSize.xy * float2(uOffset, vOffset);
-    half3 color = SAMPLE_TEXTURE2D_X(tex, sampler_LinearClamp, uv).xyz;
+    half3 color = SAMPLE_TEXTURE2D_X_LOD(tex, sampler_PointClamp, uv.xy, _BlitMipLevel);
 
     // filtering again helps remove text and other issues
     half hdrMask = HDRFilter(color);
@@ -66,10 +66,8 @@ half2 SampleHDRFilterLuminance(half2 uv, half4 texelSize, TEXTURE2D_X(tex), int 
     return half2(luma, filteredMask);
 }
 // ok we need to know when sampling luminance if a pixel in our neighbou0rhood has a hdr value
-// ok we need to know when sampling luminance if a pixel in our neighbou0rhood has a hdr value
 HDRLuminanceData SampleHDRFilterLuminanceNeighborhood(half2 uv, half4 texelSize, TEXTURE2D_X(tex))
 {
-    
     HDRLuminanceData l;
     l.m = saturate(SampleHDRFilterLuminance(uv, texelSize, tex, 0, 0));
     l.ne = saturate(SampleHDRFilterLuminance(uv, texelSize, tex, 1, 1));
@@ -82,7 +80,6 @@ HDRLuminanceData SampleHDRFilterLuminanceNeighborhood(half2 uv, half4 texelSize,
 
 HDRLuminanceData SampleHDRFilterLuminanceNeighborhoodNS(half2 uv, half4 texelSize, TEXTURE2D_X(tex))
 {
-    
     HDRLuminanceData l;
     l.m = (SampleHDRFilterLuminance(uv, texelSize, tex, 0, 0));
     l.ne = (SampleHDRFilterLuminance(uv, texelSize, tex, 1, 1));
@@ -111,7 +108,7 @@ bool ShouldSkipPixel_Contrast(HDRLuminanceData l)
 // // // this needs an effective way of reducing the size of the blur
 half3 FXAA_HDRFilter(half2 uv, TEXTURE2D_X(tex), half4 texelSize)
 {
-    half3 input = SAMPLE_TEXTURE2D_X(tex, sampler_LinearClamp, uv).xyz;
+    half3 input = SAMPLE_TEXTURE2D_X_LOD(_BlitTexture, sampler_PointClamp, uv.xy, _BlitMipLevel);
 
     half hdrMask = HDRFilter(input).xxx;
     if (hdrMask <= 0)
@@ -123,7 +120,7 @@ half3 FXAA_HDRFilter(half2 uv, TEXTURE2D_X(tex), half4 texelSize)
     
     if (!ShouldSkipPixel_HDRFilter(l))
     {
-        return SAMPLE_TEXTURE2D_X(tex, sampler_LinearClamp, uv).xyz;
+        return input;
     }
 
     l.highest = Max3(l.m.x, l.nw.x, Max3(l.ne.x, l.sw.x, l.se.x));

@@ -1,4 +1,4 @@
-﻿Shader "OculusBloom/Bloom"
+﻿Shader "MobileURP/Bloom"
 {
 
     Properties

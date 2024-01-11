@@ -16,9 +16,6 @@ namespace UnityEngine.Rendering.Universal
         RTHandle[] m_BloomMipDown;
         RTHandle[] m_BloomMipUp;
 
-        RTHandle m_TempTarget;
-        RTHandle m_TempTarget2;
-
         const string k_RenderPostProcessingTag = "Render Mobile PostProcessing Effects";
         private static readonly ProfilingSampler m_ProfilingRenderPostProcessing = new ProfilingSampler(k_RenderPostProcessingTag);
 
@@ -89,8 +86,6 @@ namespace UnityEngine.Rendering.Universal
             foreach (var handle in m_BloomMipUp)
                 handle?.Release();
 
-            m_TempTarget?.Release();
-            m_TempTarget2?.Release();
         }
 
         /// <summary>
@@ -136,22 +131,6 @@ namespace UnityEngine.Rendering.Universal
             }
         }
 
-        RenderTextureDescriptor GetCompatibleDescriptor()
-            => GetCompatibleDescriptor(m_Descriptor.width, m_Descriptor.height, m_Descriptor.graphicsFormat);
-
-        RenderTextureDescriptor GetCompatibleDescriptor(int width, int height, GraphicsFormat format, DepthBits depthBufferBits = DepthBits.None)
-            => GetCompatibleDescriptor(m_Descriptor, width, height, format, depthBufferBits);
-
-        internal static RenderTextureDescriptor GetCompatibleDescriptor(RenderTextureDescriptor desc, int width, int height, GraphicsFormat format, DepthBits depthBufferBits = DepthBits.None)
-        {
-            desc.depthBufferBits = (int)depthBufferBits;
-            desc.msaaSamples = 1;
-            desc.width = width;
-            desc.height = height;
-            desc.graphicsFormat = format;
-            return desc;
-        }
-
         void Render(CommandBuffer cmd, ref RenderingData renderingData)
         {
             ref CameraData cameraData = ref renderingData.cameraData;
@@ -159,13 +138,13 @@ namespace UnityEngine.Rendering.Universal
 
             // Setup projection matrix for cmd.DrawMesh()
             cmd.SetGlobalMatrix(ShaderConstants._FullscreenProjMat, GL.GetGPUProjectionMatrix(Matrix4x4.identity, true));
-            ProfilingSampler oculusPPSampler = new ProfilingSampler("OculusBloom PostProcessing");
+            ProfilingSampler oculusPPSampler = new ProfilingSampler("MobileRenderer PostProcessing");
 
             using (new ProfilingScope(cmd, oculusPPSampler))
             {
 
                 // Bloom goes first
-                ProfilingSampler oculusBloomSampler = new ProfilingSampler("OculusBloom OptimizedBloom");
+                ProfilingSampler oculusBloomSampler = new ProfilingSampler("MobileRenderer OptimizedBloom");
 
                 bool bloomActive = m_Bloom != null && m_Bloom.IsActive();
                 if (bloomActive)
@@ -306,7 +285,7 @@ namespace UnityEngine.Rendering.Universal
 
         void ResolveToScreen(CommandBuffer cmd, ScriptableRenderer renderer, RTHandle source, CameraData cameraData)
         {
-            ProfilingSampler oculusColorGradingSampler = new ProfilingSampler("OculusBloom ResolveToScreen");
+            ProfilingSampler oculusColorGradingSampler = new ProfilingSampler("MobileRenderer ResolveToScreen");
             using (new ProfilingScope(cmd, oculusColorGradingSampler))
             {
                 bool colorGradingActive = m_ColorAdjustments != null && m_ColorAdjustments.IsActive();
@@ -320,8 +299,12 @@ namespace UnityEngine.Rendering.Universal
                 }
 
                 var colorLoadAction = RenderBufferLoadAction.DontCare;
-                if (m_Destination == k_CameraTarget && !cameraData.isDefaultViewport)
+                if (!cameraData.isSceneViewCamera && !cameraData.isDefaultViewport)
                     colorLoadAction = RenderBufferLoadAction.Load;
+#if ENABLE_VR && ENABLE_XR_MODULE
+                if (cameraData.xr.enabled)
+                    colorLoadAction = RenderBufferLoadAction.Load;
+#endif
 
                 // Note: We rendering to "camera target" we need to get the cameraData.targetTexture as this will get the targetTexture of the camera stack.
                 // Overlay cameras need to output to the target described in the base camera while doing camera stack.
@@ -336,9 +319,8 @@ namespace UnityEngine.Rendering.Universal
                 RTHandleStaticHelpers.SetRTHandleStaticWrapper(cameraTarget);
                 var cameraTargetHandle = RTHandleStaticHelpers.s_RTHandleWrapper;
 
-                RenderingUtils.FinalBlit(cmd, ref cameraData, m_Source, cameraTargetHandle, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, m_FinalBlitMaterial, 0);
+                RenderingUtils.FinalBlit(cmd, ref cameraData, m_Source, cameraTargetHandle, colorLoadAction, RenderBufferStoreAction.Store, m_FinalBlitMaterial, 0);
                 renderer.ConfigureCameraColorTarget(cameraTargetHandle);
-
             }
         }
 

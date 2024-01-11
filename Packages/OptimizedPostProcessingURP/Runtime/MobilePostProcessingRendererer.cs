@@ -73,6 +73,7 @@ namespace UnityEngine.Rendering.Universal
         InvokeOnRenderObjectCallbackPass m_OnRenderObjectCallbackPass;
         CapturePass m_CapturePass;
 
+        FinalBlitPass m_FinalBlitPass;
 
 
         // Oculus Bloom Specific Passes
@@ -284,8 +285,10 @@ namespace UnityEngine.Rendering.Universal
             m_CapturePass = new CapturePass(RenderPassEvent.AfterRendering);
 
 
-            var oculusBloomPostProcessParams = PostProcessParams.Create();
-            m_MobilePostProcessPass = new MobilePostProcessPass(RenderPassEvent.AfterRendering + k_FinalBlitPassQueueOffset, data.postProcessData, m_MobileFinalBlitMaterial, m_MobileBloomMaterial, ref oculusBloomPostProcessParams);
+
+
+            var mobilePostProcessParams = PostProcessParams.Create();
+            m_MobilePostProcessPass = new MobilePostProcessPass(RenderPassEvent.AfterRendering + k_FinalBlitPassQueueOffset, data.postProcessData, m_MobileFinalBlitMaterial, m_MobileBloomMaterial, ref mobilePostProcessParams);
 
 #if UNITY_EDITOR
             m_FinalDepthCopyPass = new CopyDepthPass(RenderPassEvent.AfterRendering + 9, m_CopyDepthMaterial);
@@ -836,7 +839,7 @@ namespace UnityEngine.Rendering.Universal
 
 
             // make sure we store the depth only if following passes need it.
-            RenderBufferStoreAction opaquePassDepthStoreAction = (copyColorPass || requiresDepthCopyPass || !lastCameraInTheStack) ? RenderBufferStoreAction.Store : RenderBufferStoreAction.DontCare;
+            RenderBufferStoreAction opaquePassDepthStoreAction = RenderBufferStoreAction.DontCare;
 #if ENABLE_VR && ENABLE_XR_MODULE
             if (cameraData.xr.enabled && cameraData.xr.copyDepth)
             {
@@ -975,11 +978,16 @@ namespace UnityEngine.Rendering.Universal
                 EnqueuePass(m_DrawOffscreenUIPass);
             }
 
+            #region Mobile Post Processing Pass
+            // this is where we inject are override pass for post processing
+
             if (cameraData.cameraType != CameraType.Preview)
             {
                 m_MobilePostProcessPass.Setup(cameraTargetDescriptor, m_ActiveCameraColorAttachment);
                 EnqueuePass(m_MobilePostProcessPass);
             }
+
+            #endregion
 
 #if UNITY_EDITOR
             if (isSceneViewOrPreviewCamera || (isGizmosEnabled && lastCameraInTheStack))
