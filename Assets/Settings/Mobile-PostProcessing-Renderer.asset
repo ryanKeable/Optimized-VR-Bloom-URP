@@ -9,8 +9,8 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 96d31099ad3cba1478fc0ba553b94dcf, type: 3}
-  m_Name: Test
+  m_Script: {fileID: 11500000, guid: 62b419ab94bf94a46b8566f56f6246e9, type: 3}
+  m_Name: Mobile-PostProcessing-Renderer
   m_EditorClassIdentifier: 
   debugShaders:
     debugReplacementPS: {fileID: 4800000, guid: cf852408f2e174538bcd9b7fda1c5ae7,
@@ -54,12 +54,12 @@ MonoBehaviour:
     passOperation: 2
     failOperation: 0
     zFailOperation: 0
-  m_ShadowTransparentReceive: 0
+  m_ShadowTransparentReceive: 1
   m_RenderingMode: 0
   m_DepthPrimingMode: 0
   m_CopyDepthMode: 1
   m_AccurateGbufferNormals: 0
   m_IntermediateTextureMode: 1
-  oculusBloomShaders:
-    finalBlitPS: {fileID: 4800000, guid: ee6bc995b2e62014995ce593d0f31a42, type: 3}
-    bloomPS: {fileID: 4800000, guid: d2bc736d6c87a0f439861a348b420af4, type: 3}
+  mobilePostProcessingRendererShaders:
+    finalBlitPS: {fileID: 4800000, guid: c3206e488f784f941ba14eff77102516, type: 3}
+    bloomPS: {fileID: 4800000, guid: 2ebfb1c3ec1fd7f418c9ad47aae4ec38, type: 3}

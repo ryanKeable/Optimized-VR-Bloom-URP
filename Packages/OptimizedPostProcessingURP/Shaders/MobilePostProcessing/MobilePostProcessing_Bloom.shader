@@ -10,10 +10,10 @@
 
     #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
     #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Filtering.hlsl"
-    #include "Packages/CustomURP/ShaderLibrary/Core.hlsl"
+    #include "Packages/OptimizedPostProcessingURP/ShaderLibrary/Core.hlsl"
     #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
-    #include "Packages/CustomURP/Shaders/PostProcessing/Common.hlsl"
-    #include "OculusBloom_FXAA.hlsl"
+    #include "Packages/OptimizedPostProcessingURP/Shaders/PostProcessing/Common.hlsl"
+    #include "MobilePostProcessing_FXAA.hlsl"
     
     TEXTURE2D_X(_MainTexLowMip);
     float4 _MainTexLowMip_TexelSize;
@@ -74,7 +74,6 @@
 
         // bloom filter
         color = FilteredColour(color);
-        // color = FastTonemap(color);
 
         return half4(color, 1.0h);
     }

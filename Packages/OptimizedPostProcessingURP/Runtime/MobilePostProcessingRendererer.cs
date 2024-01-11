@@ -10,7 +10,7 @@ namespace UnityEngine.Rendering.Universal
     /// This renderer is supported on all Universal RP supported platforms.
     /// It uses a classic forward rendering strategy with per-object light culling.
     /// </summary>
-    public sealed partial class OculusBloomRendererer : UniversalRenderer
+    public sealed partial class MobilePostProcessingRendererer : UniversalRenderer
     {
 #if UNITY_SWITCH || UNITY_ANDROID
         const GraphicsFormat k_DepthStencilFormat = GraphicsFormat.D24_UNorm_S8_UInt;
@@ -76,7 +76,7 @@ namespace UnityEngine.Rendering.Universal
 
 
         // Oculus Bloom Specific Passes
-        OculusBloomPostProcessPass m_OculusBloomPostProcessPass;
+        MobilePostProcessPass m_MobilePostProcessPass;
 
 
 #if ENABLE_VR && ENABLE_XR_MODULE
@@ -115,8 +115,8 @@ namespace UnityEngine.Rendering.Universal
         Material m_ObjectMotionVecMaterial = null;
 
         // Materials usesd specifically for Oculus Bloom Rendering
-        Material m_OculusBloomMaterial = null;
-        Material m_OculusBloomFinalBlitMaterial = null;
+        Material m_MobileBloomMaterial = null;
+        Material m_MobileFinalBlitMaterial = null;
 
 
 
@@ -126,7 +126,7 @@ namespace UnityEngine.Rendering.Universal
         /// Constructor for the Universal Renderer.
         /// </summary>
         /// <param name="data">The settings to create the renderer with.</param>
-        public OculusBloomRendererer(OculusBloomData data) : base(data)
+        public MobilePostProcessingRendererer(MobilePostProcessingRendererData data) : base(data)
         {
             // Query and cache runtime platform info first before setting up URP.
             PlatformAutoDetect.Initialize();
@@ -143,8 +143,8 @@ namespace UnityEngine.Rendering.Universal
             m_ObjectMotionVecMaterial = CoreUtils.CreateEngineMaterial(data.shaders.objectMotionVector);
 
 
-            m_OculusBloomFinalBlitMaterial = CoreUtils.CreateEngineMaterial(data.oculusBloomShaders.finalBlitPS);
-            m_OculusBloomMaterial = CoreUtils.CreateEngineMaterial(data.oculusBloomShaders.bloomPS);
+            m_MobileFinalBlitMaterial = CoreUtils.CreateEngineMaterial(data.mobilePostProcessingRendererShaders.finalBlitPS);
+            m_MobileBloomMaterial = CoreUtils.CreateEngineMaterial(data.mobilePostProcessingRendererShaders.bloomPS);
 
             StencilStateData stencilData = data.defaultStencilState;
             m_DefaultStencilState = StencilState.defaultValue;
@@ -285,7 +285,7 @@ namespace UnityEngine.Rendering.Universal
 
 
             var oculusBloomPostProcessParams = PostProcessParams.Create();
-            m_OculusBloomPostProcessPass = new OculusBloomPostProcessPass(RenderPassEvent.AfterRendering + k_FinalBlitPassQueueOffset, data.postProcessData, m_OculusBloomFinalBlitMaterial, m_OculusBloomMaterial, ref oculusBloomPostProcessParams);
+            m_MobilePostProcessPass = new MobilePostProcessPass(RenderPassEvent.AfterRendering + k_FinalBlitPassQueueOffset, data.postProcessData, m_MobileFinalBlitMaterial, m_MobileBloomMaterial, ref oculusBloomPostProcessParams);
 
 #if UNITY_EDITOR
             m_FinalDepthCopyPass = new CopyDepthPass(RenderPassEvent.AfterRendering + 9, m_CopyDepthMaterial);
@@ -319,7 +319,7 @@ namespace UnityEngine.Rendering.Universal
         /// <inheritdoc />
         protected override void Dispose(bool disposing)
         {
-            m_OculusBloomPostProcessPass?.Dispose();
+            m_MobilePostProcessPass?.Dispose();
             ReleaseRenderTargets();
 
             base.Dispose(disposing);
@@ -719,7 +719,7 @@ namespace UnityEngine.Rendering.Universal
             else
             {
                 cameraData.baseCamera.TryGetComponent<UniversalAdditionalCameraData>(out var baseCameraData);
-                var baseRenderer = (OculusBloomRendererer)baseCameraData.scriptableRenderer;
+                var baseRenderer = (MobilePostProcessingRendererer)baseCameraData.scriptableRenderer;
                 if (m_ColorBufferSystem != baseRenderer.m_ColorBufferSystem)
                 {
                     m_ColorBufferSystem.Dispose();
@@ -977,8 +977,8 @@ namespace UnityEngine.Rendering.Universal
 
             if (cameraData.cameraType != CameraType.Preview)
             {
-                m_OculusBloomPostProcessPass.Setup(cameraTargetDescriptor, m_ActiveCameraColorAttachment);
-                EnqueuePass(m_OculusBloomPostProcessPass);
+                m_MobilePostProcessPass.Setup(cameraTargetDescriptor, m_ActiveCameraColorAttachment);
+                EnqueuePass(m_MobilePostProcessPass);
             }
 
 #if UNITY_EDITOR

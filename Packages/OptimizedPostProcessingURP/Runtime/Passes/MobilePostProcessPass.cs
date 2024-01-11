@@ -7,7 +7,7 @@ namespace UnityEngine.Rendering.Universal
     /// <summary>
     /// Renders the post-processing effect stack.
     /// </summary>
-    internal class OculusBloomPostProcessPass : ScriptableRenderPass
+    internal class MobilePostProcessPass : ScriptableRenderPass
     {
         RenderTextureDescriptor m_Descriptor;
         RTHandle m_Source;
@@ -19,7 +19,7 @@ namespace UnityEngine.Rendering.Universal
         RTHandle m_TempTarget;
         RTHandle m_TempTarget2;
 
-        const string k_RenderPostProcessingTag = "Render Oculus Bloom PostProcessing Effects";
+        const string k_RenderPostProcessingTag = "Render Mobile PostProcessing Effects";
         private static readonly ProfilingSampler m_ProfilingRenderPostProcessing = new ProfilingSampler(k_RenderPostProcessingTag);
 
         PostProcessData m_Data;
@@ -50,9 +50,9 @@ namespace UnityEngine.Rendering.Universal
         /// <seealso cref="RenderPassEvent"/>
         /// <seealso cref="PostProcessData"/>
         /// <seealso cref="PostProcessParams"/>
-        public OculusBloomPostProcessPass(RenderPassEvent evt, PostProcessData data, Material blitMaterial, Material bloomMaterial, ref PostProcessParams postProcessParams)
+        public MobilePostProcessPass(RenderPassEvent evt, PostProcessData data, Material blitMaterial, Material bloomMaterial, ref PostProcessParams postProcessParams)
         {
-            base.profilingSampler = new ProfilingSampler(nameof(OculusBloomPostProcessPass));
+            base.profilingSampler = new ProfilingSampler(nameof(MobilePostProcessPass));
             renderPassEvent = evt;
             m_Data = data;
 
@@ -75,11 +75,7 @@ namespace UnityEngine.Rendering.Universal
                 m_BloomMipDown[i] = RTHandles.Alloc(ShaderConstants._BloomMipDown[i], name: "_BloomMipDown" + i);
             }
 
-
-            // TODO: double check that this is the right format??
-            // m_DefaultHDRFormat = GraphicsFormat.R8G8B8A8_SRGB;
             m_DefaultHDRFormat = GraphicsFormat.B10G11R11_UFloatPack32;
-            // m_DefaultHDRFormat = GraphicsFormat.RGBA_ASTC10X10_UFloat;
         }
 
 

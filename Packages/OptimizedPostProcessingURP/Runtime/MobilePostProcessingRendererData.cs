@@ -14,32 +14,30 @@ namespace UnityEngine.Rendering.Universal
     /// </summary>
     [Serializable, ReloadGroup, ExcludeFromPreset]
     [URPHelpURL("urp-universal-renderer")]
-    public class OculusBloomData : UniversalRendererData, ISerializationCallbackReceiver
+    public class MobilePostProcessingRendererData : UniversalRendererData, ISerializationCallbackReceiver
     {
 #if UNITY_EDITOR
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1812")]
-        internal class OculusBloomRendererAsset : EndNameEditAction
+        internal class CreateMobilePostProcessingRendererAsset : EndNameEditAction
         {
             public override void Action(int instanceId, string pathName, string resourceFile)
             {
-                var instance = CreateInstance<OculusBloomData>();
+                var instance = CreateInstance<MobilePostProcessingRendererData>();
                 AssetDatabase.CreateAsset(instance, pathName);
                 ResourceReloader.ReloadAllNullIn(instance, UniversalRenderPipelineAsset.packagePath);
                 Selection.activeObject = instance;
             }
         }
 
-        // [MenuItem("Assets/Create/Rendering/Universal Render Pipeline/DelMar Renderer", priority = CoreUtils.assetCreateMenuPriority2)]
-
-        [MenuItem("Assets/Create/Rendering/Oculus Bloom Renderer", priority = CoreUtils.Sections.section3 + CoreUtils.Priorities.assetsCreateRenderingMenuPriority + 2)]
-        static void CreateOculusBloomDataRendererData()
+        [MenuItem("Assets/Create/Rendering/Mobile PostProcessing Rendererer", priority = CoreUtils.Sections.section3 + CoreUtils.Priorities.assetsCreateRenderingMenuPriority + 2)]
+        static void CreateMobilePostProcessingRendererData()
         {
-            ProjectWindowUtil.StartNameEditingIfProjectWindowExists(0, CreateInstance<OculusBloomRendererAsset>(), "New Custom Universal Renderer Data.asset", null, null);
+            ProjectWindowUtil.StartNameEditingIfProjectWindowExists(0, CreateInstance<CreateMobilePostProcessingRendererAsset>(), "New Custom Universal Renderer Data.asset", null, null);
         }
 
 #endif
 
-        public OculusBloomShaderResources oculusBloomShaders = null;
+        public MobilePostProcessingRendererShaderResources mobilePostProcessingRendererShaders = null;
 
         const int k_LatestAssetVersion = 2;
 
@@ -50,18 +48,18 @@ namespace UnityEngine.Rendering.Universal
         /// Class containing shader resources used in URP.
         /// </summary>
         [Serializable, ReloadGroup]
-        public sealed class OculusBloomShaderResources
+        public sealed class MobilePostProcessingRendererShaderResources
         {
             /// <summary>
             /// Blit shader.
             /// </summary>
-            [Reload("Shaders/OculusBloom/OculusBloom_FinalBlit.shader")]
+            [Reload("Shaders/MobilePostProcessing/MobilePostProcessing_FinalBlit.shader")]
             public Shader finalBlitPS;
 
             /// <summary>
             /// Copy Depth shader.
             /// </summary>
-            [Reload("Shaders/OculusBloom/OculusBloom_Bloom.shader")]
+            [Reload("Shaders/MobilePostProcessing/MobilePostProcessing_Bloom.shader")]
             public Shader bloomPS;
 
 
@@ -75,14 +73,14 @@ namespace UnityEngine.Rendering.Universal
             {
                 ReloadAllNullProperties();
             }
-            return new OculusBloomRendererer(this);
+            return new MobilePostProcessingRendererer(this);
         }
 
         /// <inheritdoc/>
         protected override void OnEnable()
         {
 
-            if (oculusBloomShaders == null)
+            if (mobilePostProcessingRendererShaders == null)
                 return;
 
             base.OnEnable();
