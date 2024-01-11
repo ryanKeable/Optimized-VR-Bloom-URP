@@ -59,7 +59,7 @@ half2 SampleHDRFilterLuminance(half2 uv, half4 texelSize, TEXTURE2D_X(tex), int 
 
     // filtering again helps remove text and other issues
     half hdrMask = HDRFilter(color);
-    half filteredMask = FilteredHDRMask(hdrMask);
+    half filteredMask = hdrMask;
 
     luma = LinearRgbToLuminance((color.rgb));
 
@@ -78,19 +78,6 @@ HDRLuminanceData SampleHDRFilterLuminanceNeighborhood(half2 uv, half4 texelSize,
     return l;
 }
 
-HDRLuminanceData SampleHDRFilterLuminanceNeighborhoodNS(half2 uv, half4 texelSize, TEXTURE2D_X(tex))
-{
-    HDRLuminanceData l;
-    l.m = (SampleHDRFilterLuminance(uv, texelSize, tex, 0, 0));
-    l.ne = (SampleHDRFilterLuminance(uv, texelSize, tex, 1, 1));
-    l.nw = (SampleHDRFilterLuminance(uv, texelSize, tex, -1, 1));
-    l.se = (SampleHDRFilterLuminance(uv, texelSize, tex, 1, -1));
-    l.sw = (SampleHDRFilterLuminance(uv, texelSize, tex, -1, -1));
-
-    return l;
-}
-
-
 // if my neighbourhood lacks a HDR pixel then we should skip me
 bool ShouldSkipPixel_HDRFilter(HDRLuminanceData l)
 {
@@ -106,18 +93,18 @@ bool ShouldSkipPixel_Contrast(HDRLuminanceData l)
 }
 
 // // // this needs an effective way of reducing the size of the blur
-half3 FXAA_HDRFilter(half2 uv, TEXTURE2D_X(tex), half4 texelSize)
+half3 FXAA_HDRFilter(half3 input, half2 uv, TEXTURE2D_X(tex), half4 texelSize)
 {
-    half3 input = SAMPLE_TEXTURE2D_X_LOD(_BlitTexture, sampler_PointClamp, uv.xy, _BlitMipLevel);
 
     half hdrMask = HDRFilter(input).xxx;
-    if (hdrMask <= 0)
+    hdrMask = fwidth(hdrMask);
+
+    if (hdrMask <= 0.05)
     {
         return input;
     }
 
     HDRLuminanceData l = SampleHDRFilterLuminanceNeighborhood(uv, texelSize, tex);
-    
     if (!ShouldSkipPixel_HDRFilter(l))
     {
         return input;

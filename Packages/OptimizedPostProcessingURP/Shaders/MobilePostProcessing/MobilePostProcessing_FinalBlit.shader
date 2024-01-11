@@ -7,11 +7,9 @@ Shader "MobileURP/FinalBlit"
     #pragma fragmentoption ARB_precision_hint_fastest
     
     #pragma multi_compile_local_fragment _ _COLORADJUSTMENTS
+    #pragma multi_compile_local_fragment _ _FXAA_ON
     #pragma multi_compile_local_fragment _ _TONEMAP_ACES _TONEMAP_NEUTRAL
 
-    // #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
-    // #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Filtering.hlsl"
-    // #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/ScreenCoordOverride.hlsl"
     #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
     #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
     #include "Packages/com.unity.render-pipelines.universal/Shaders/PostProcessing/Common.hlsl"
@@ -34,12 +32,13 @@ Shader "MobileURP/FinalBlit"
 
         float2 uv = UnityStereoTransformScreenSpaceTex(input.texcoord);
 
-        half3 color = FXAA_HDRFilter(uv, _BlitTexture, _BlitTexture_TexelSize);
-        // half3 color = SAMPLE_TEXTURE2D_X_LOD(_BlitTexture, sampler_PointClamp, input.texcoord.xy, _BlitMipLevel);
+        half3 color = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_PointClamp, uv.xy);
 
-        half3 bloom = SAMPLE_TEXTURE2D_X(_Bloom_Texture, sampler_LinearClamp, uv).xyz;
-
+        #if _FXAA_ON
+            color = FXAA_HDRFilter(color, uv, _BlitTexture, _BlitTexture_TexelSize);
+        #endif
         
+        half3 bloom = SAMPLE_TEXTURE2D_X(_Bloom_Texture, sampler_LinearClamp, uv).xyz;
         bloom.rgb *= _Bloom_Intensity.xxx * _Bloom_Tint;
         color += bloom.rgb;
 

@@ -1,8 +1,8 @@
 #include "Packages/com.unity.render-pipelines.universal/Shaders/PostProcessing/Common.hlsl"
 
-float4 _ColorAdjustmentParams;
-half3 _ColorBalance;
-half3 _ColorFilter;
+uniform float4 _ColorAdjustmentParams;
+uniform half3 _ColorBalance;
+uniform half3 _ColorFilter;
 
 #define GAMMA                   _ColorAdjustmentParams.x
 #define SATURATION              _ColorAdjustmentParams.y
@@ -193,7 +193,6 @@ half3 ApplyToneMapping(half3 input)
     #if _TONEMAP_ACES
         float3 aces = unity_to_ACES(input);
         input = RDKAcesTonemap(aces);
-
     #elif _TONEMAP_NEUTRAL
         input = RDKNeutralTonemap(input);
     #endif

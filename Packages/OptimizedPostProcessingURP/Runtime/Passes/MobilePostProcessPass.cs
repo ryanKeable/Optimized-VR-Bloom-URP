@@ -101,6 +101,7 @@ namespace UnityEngine.Rendering.Universal
             m_Source = source;
             m_Destination = k_CameraTarget;
 
+
         }
 
         /// <inheritdoc/>
@@ -135,6 +136,8 @@ namespace UnityEngine.Rendering.Universal
         {
             ref CameraData cameraData = ref renderingData.cameraData;
             ref ScriptableRenderer renderer = ref cameraData.renderer;
+
+
 
             // Setup projection matrix for cmd.DrawMesh()
             cmd.SetGlobalMatrix(ShaderConstants._FullscreenProjMat, GL.GetGPUProjectionMatrix(Matrix4x4.identity, true));
@@ -298,6 +301,16 @@ namespace UnityEngine.Rendering.Universal
                     m_FinalBlitMaterial.DisableKeyword(ShaderConstants.ColorAdjusments);
                 }
 
+                bool isFxaaEnabled = cameraData.antialiasing == AntialiasingMode.FastApproximateAntialiasing;
+                if (isFxaaEnabled)
+                {
+                    m_FinalBlitMaterial.EnableKeyword(ShaderConstants.FXAA);
+                }
+                else
+                {
+                    m_FinalBlitMaterial.DisableKeyword(ShaderConstants.FXAA);
+                }
+
                 var colorLoadAction = RenderBufferLoadAction.DontCare;
                 if (!cameraData.isSceneViewCamera && !cameraData.isDefaultViewport)
                     colorLoadAction = RenderBufferLoadAction.Load;
@@ -372,6 +385,7 @@ namespace UnityEngine.Rendering.Universal
             public static readonly int _AdjustmentParams = Shader.PropertyToID("_ColorAdjustmentParams");
 
             public const string ColorAdjusments = "_COLORADJUSTMENTS";
+            public const string FXAA = "_FXAA_ON";
 
             public static int[] _BloomMipUp;
             public static int[] _BloomMipDown;
