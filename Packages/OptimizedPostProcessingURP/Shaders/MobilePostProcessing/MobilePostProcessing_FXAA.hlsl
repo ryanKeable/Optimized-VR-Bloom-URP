@@ -13,7 +13,7 @@
 
 struct HDRLuminanceData
 {
-    half2 m, ne, nw, se, sw;
+    half2 ne, nw, se, sw;
     half highest, lowest, contrast;
 };
 
@@ -55,13 +55,13 @@ half2 SampleHDRFilterLuminance(half2 uv, half4 texelSize, TEXTURE2D_X(tex), int 
     half luma = 0.0;
 
     uv += texelSize.xy * float2(uOffset, vOffset);
-    half3 color = SAMPLE_TEXTURE2D_X_LOD(tex, sampler_PointClamp, uv.xy, _BlitMipLevel);
+    half3 color = SAMPLE_TEXTURE2D_X(tex, sampler_PointClamp, uv.xy);
 
     // filtering again helps remove text and other issues
     half hdrMask = HDRFilter(color);
     half filteredMask = hdrMask;
 
-    luma = LinearRgbToLuminance((color.rgb));
+    luma = Luminance(color.rgb);
 
     return half2(luma, filteredMask);
 }
@@ -69,7 +69,6 @@ half2 SampleHDRFilterLuminance(half2 uv, half4 texelSize, TEXTURE2D_X(tex), int 
 HDRLuminanceData SampleHDRFilterLuminanceNeighborhood(half2 uv, half4 texelSize, TEXTURE2D_X(tex))
 {
     HDRLuminanceData l;
-    l.m = saturate(SampleHDRFilterLuminance(uv, texelSize, tex, 0, 0));
     l.ne = saturate(SampleHDRFilterLuminance(uv, texelSize, tex, 1, 1));
     l.nw = saturate(SampleHDRFilterLuminance(uv, texelSize, tex, -1, 1));
     l.se = saturate(SampleHDRFilterLuminance(uv, texelSize, tex, 1, -1));
@@ -81,7 +80,7 @@ HDRLuminanceData SampleHDRFilterLuminanceNeighborhood(half2 uv, half4 texelSize,
 // if my neighbourhood lacks a HDR pixel then we should skip me
 bool ShouldSkipPixel_HDRFilter(HDRLuminanceData l)
 {
-    half isHDR = l.m.y + l.ne.y + l.nw.y + l.se.y + l.sw.y;
+    half isHDR = l.ne.y + l.nw.y + l.se.y + l.sw.y;
     return isHDR > 0;
 }
 
@@ -110,8 +109,8 @@ half3 FXAA_HDRFilter(half3 input, half2 uv, TEXTURE2D_X(tex), half4 texelSize)
         return input;
     }
 
-    l.highest = Max3(l.m.x, l.nw.x, Max3(l.ne.x, l.sw.x, l.se.x));
-    l.lowest = Min3(l.m.x, l.nw.x, Min3(l.ne.x, l.sw.x, l.se.x));
+    l.highest = max(l.nw.x, Max3(l.ne.x, l.sw.x, l.se.x));
+    l.lowest = min(l.nw.x, Min3(l.ne.x, l.sw.x, l.se.x));
 
     l.contrast = l.highest - l.lowest;
 
@@ -125,7 +124,7 @@ half3 FXAA_HDRFilter(half3 input, half2 uv, TEXTURE2D_X(tex), half4 texelSize)
     dir.x = - ((l.nw.x + l.ne.x) - (l.sw.x + l.se.x));
     dir.y = ((l.nw.x + l.sw.x) - (l.ne.x + l.se.x));
 
-    half lumaSum = l.m.x + l.nw.x + l.sw.x + l.se.x + l.ne.x;
+    half lumaSum = l.nw.x + l.sw.x + l.se.x + l.ne.x;
 
     half dirReduce = max(lumaSum * FXAA_REDUCE_MUL, FXAA_REDUCE_MIN);
     half rcpDirMin = rcp(min(abs(dir.x), abs(dir.y)) + dirReduce);
