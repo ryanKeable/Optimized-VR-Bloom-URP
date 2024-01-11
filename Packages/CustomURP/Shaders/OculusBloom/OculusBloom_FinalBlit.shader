@@ -16,6 +16,7 @@ Shader "OculusBloom/FinalBlit"
     float4 _BlitTexture_TexelSize;
 
     TEXTURE2D_X(_Bloom_Texture);
+    float4 _Bloom_Texture_TexelSize;
     
     half3 _Bloom_Tint;
     half _Bloom_Intensity;
@@ -25,9 +26,10 @@ Shader "OculusBloom/FinalBlit"
         UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
 
         float2 uv = UnityStereoTransformScreenSpaceTex(input.texcoord);
-        half3 bloom = SAMPLE_TEXTURE2D_X(_Bloom_Texture, sampler_LinearClamp, SCREEN_COORD_REMOVE_SCALEBIAS(uv));
-        half3 color = FXAA_HDRFilter(uv, _BlitTexture, _BlitTexture_TexelSize);
 
+        half3 color = FXAA_HDRFilter(uv, _BlitTexture, _BlitTexture_TexelSize);
+        half3 bloom = FXAA_HDRFilter(SCREEN_COORD_REMOVE_SCALEBIAS(uv), _Bloom_Texture, _Bloom_Texture_TexelSize);
+        
         bloom.rgb *= _Bloom_Intensity.xxx * _Bloom_Tint;
         color += bloom.rgb;
 

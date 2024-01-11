@@ -25,7 +25,7 @@
     #define Scatter                 _Bloom_Params.x
     #define ClampMax               _Bloom_Params.y
     #define Threshold           _Bloom_Params.z
-    #define ThresholdKnee      _Bloom_Params.z
+    #define ThresholdKnee      _Bloom_Params.w
 
     #define LinearBlurTaps          3
     #define KernelSize          3
@@ -49,11 +49,12 @@
 
         // Thresholding
         half brightness = Max3(color.r, color.g, color.b);
-        half softness = clamp((brightness - Threshold) + ThresholdKnee, 0.0, ThresholdKnee);
+        half softness = clamp(brightness - Threshold + ThresholdKnee, 0.0, 2.0 * ThresholdKnee);
         softness = (softness * softness) / (4.0 * ThresholdKnee + 1e-4);
         half multiplier = max(brightness - Threshold, softness) / max(brightness, 1e-4);
-        
         color *= multiplier;
+
+        // Clamp colors to positive once in prefilter. Encode can have a sqrt, and sqrt(-x) == NaN. Up/Downsample passes would then spread the NaN.
         color = max(color, 0);
 
         return color;

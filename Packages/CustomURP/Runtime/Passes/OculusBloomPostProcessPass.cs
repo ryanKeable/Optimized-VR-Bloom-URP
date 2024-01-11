@@ -277,15 +277,25 @@ namespace UnityEngine.Rendering.Universal
             m_FinalBlitMaterial.SetVector(ShaderConstants._ColorFilter, m_ColorAdjustments.colorFilter.value.linear);
             m_FinalBlitMaterial.SetVector(ShaderConstants._AdjustmentParams, adjustmentParams);
 
-
-            m_FinalBlitMaterial.DisableKeyword(ShaderKeywordStrings.TonemapNeutral);
-            m_FinalBlitMaterial.DisableKeyword(ShaderKeywordStrings.TonemapACES);
-
             switch (m_ColorAdjustments.mode.value)
             {
-                case TonemappingMode.Neutral: m_FinalBlitMaterial.EnableKeyword(ShaderKeywordStrings.TonemapNeutral); break;
-                case TonemappingMode.ACES: m_FinalBlitMaterial.EnableKeyword(ShaderKeywordStrings.TonemapACES); break;
-                default: break; // None
+
+                case TonemappingMode.Neutral:
+                    {
+                        m_FinalBlitMaterial.EnableKeyword(ShaderKeywordStrings.TonemapNeutral);
+                        break;
+                    }
+                case TonemappingMode.ACES:
+                    {
+                        m_FinalBlitMaterial.EnableKeyword(ShaderKeywordStrings.TonemapACES);
+                        break;
+                    }
+                default:
+                    {
+                        m_FinalBlitMaterial.DisableKeyword(ShaderKeywordStrings.TonemapNeutral);
+                        m_FinalBlitMaterial.DisableKeyword(ShaderKeywordStrings.TonemapNeutral);
+                        break; // None
+                    }
             }
 
         }
@@ -326,7 +336,14 @@ namespace UnityEngine.Rendering.Universal
                 RTHandleStaticHelpers.SetRTHandleStaticWrapper(cameraTarget);
                 var cameraTargetHandle = RTHandleStaticHelpers.s_RTHandleWrapper;
 
+                // we require different load and store actions for  previewing the camera target in the Editor
+                // When blitting to device we want to set both load and store to DONTCARE to optimize for the Tiled GPU
+
+#if UNITY_EDITOR
                 RenderingUtils.FinalBlit(cmd, ref cameraData, m_Source, cameraTargetHandle, colorLoadAction, RenderBufferStoreAction.Store, m_FinalBlitMaterial, 0);
+#else
+                RenderingUtils.FinalBlit(cmd, ref cameraData, m_Source, cameraTargetHandle, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare, m_FinalBlitMaterial, 0);
+#endif
                 renderer.ConfigureCameraColorTarget(cameraTargetHandle);
 
             }

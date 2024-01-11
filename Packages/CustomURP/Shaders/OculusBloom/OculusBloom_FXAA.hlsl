@@ -1,6 +1,6 @@
 #include "Packages/com.unity.render-pipelines.universal/Shaders/PostProcessing/Common.hlsl"
 
-#define HDRColorThreshold (0.5h)
+#define HDRColorThreshold (0.8h)
 #define FilteredHDRMaskThreshold (1.175h)
 #define FilteredHDRMaskThresholdKnee (0.5h)
 
@@ -118,7 +118,6 @@ half3 FXAA_HDRFilter(half2 uv, TEXTURE2D_X(tex), half4 texelSize)
     {
         return input;
     }
-
 
     HDRLuminanceData l = SampleHDRFilterLuminanceNeighborhood(uv, texelSize, tex);
     

@@ -59,15 +59,7 @@ namespace UnityEngine.Rendering.Universal
         public TonemappingModeParameter mode = new TonemappingModeParameter(TonemappingMode.None);
 
         /// <inheritdoc/>
-        public bool IsActive()
-        {
-            return gamma != 0f
-                || contrast != 0f
-                || colorFilter != Color.white
-                || temperature != 0f
-                || tint != 0f
-                || saturation != 0f;
-        }
+        public bool IsActive() => true;
 
         /// <inheritdoc/>
         public bool IsTileCompatible() => true;

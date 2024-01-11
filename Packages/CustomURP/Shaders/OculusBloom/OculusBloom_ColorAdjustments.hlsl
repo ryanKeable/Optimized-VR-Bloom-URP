@@ -193,6 +193,7 @@ half3 ApplyToneMapping(half3 input)
     #if _TONEMAP_ACES
         float3 aces = unity_to_ACES(input);
         input = RDKAcesTonemap(aces);
+
     #elif _TONEMAP_NEUTRAL
         input = RDKNeutralTonemap(input);
     #endif
@@ -216,6 +217,7 @@ half3 ApplyColorAdjustments(half3 input)
         
         input = Saturation(input, SATURATION);
         input = GammaCorrection(input, GAMMA);
+
     #endif
 
     return input;
