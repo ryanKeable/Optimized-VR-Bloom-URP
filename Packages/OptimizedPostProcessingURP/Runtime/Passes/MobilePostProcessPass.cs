@@ -25,8 +25,8 @@ namespace UnityEngine.Rendering.Universal
         PostProcessData m_Data;
 
 
-        OculusBloom m_Bloom;
-        OculusBloomColorAdjustments m_ColorAdjustments;
+        MobileBloom m_Bloom;
+        MobileColorAdjustmentsAndToneMapping m_ColorAdjustments;
 
         // TODO: Add custom color adjustments here
         // TODO: Add custom tonemapping here
@@ -126,8 +126,8 @@ namespace UnityEngine.Rendering.Universal
             // Start by pre-fetching all builtin effect settings we need
             // Some of the color-grading settings are only used in the color grading lut pass
             var stack = VolumeManager.instance.stack;
-            m_Bloom = stack.GetComponent<OculusBloom>();
-            m_ColorAdjustments = stack.GetComponent<OculusBloomColorAdjustments>();
+            m_Bloom = stack.GetComponent<MobileBloom>();
+            m_ColorAdjustments = stack.GetComponent<MobileColorAdjustmentsAndToneMapping>();
 
             var cmd = renderingData.commandBuffer;
             using (new ProfilingScope(cmd, m_ProfilingRenderPostProcessing))

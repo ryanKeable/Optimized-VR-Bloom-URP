@@ -5,9 +5,9 @@ namespace UnityEngine.Rendering.Universal
     /// <summary>
     /// A volume component that holds settings for the Color Adjustments effect.
     /// </summary>
-    [Serializable, VolumeComponentMenuForRenderPipeline("Post-processing/Oculus Bloom Color Adjustments", typeof(UniversalRenderPipeline))]
+    [Serializable, VolumeComponentMenuForRenderPipeline("Post-processing/Mobile Color Adjustments", typeof(UniversalRenderPipeline))]
     [URPHelpURL("Post-Processing-Color-Adjustments")]
-    public sealed class OculusBloomColorAdjustments : VolumeComponent, IPostProcessComponent
+    public sealed class MobileColorAdjustmentsAndToneMapping : VolumeComponent, IPostProcessComponent
     {
         [Header("Color Adjustments")]
 
