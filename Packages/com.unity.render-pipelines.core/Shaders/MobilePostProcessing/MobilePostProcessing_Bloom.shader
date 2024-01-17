@@ -19,7 +19,6 @@
     float4 _MainTexLowMip_TexelSize;
     float4 _BlitTexture_TexelSize;
 
-
     half4 _Bloom_Params; // x: scatter, y: threshold, z: threshold knee, w: threshold numerator
 
     #define Scatter                 _Bloom_Params.x
@@ -28,7 +27,7 @@
     #define ThresholdKnee      _Bloom_Params.w
 
     #define LinearBlurTaps          3
-    #define KernelSize          3
+    #define KernelSize              3
 
     static const half vOffset[3] = {
         0.0h, 1.3846153846h * _BlitTexture_TexelSize.x, 3.2307692308h * _BlitTexture_TexelSize.x
@@ -40,7 +39,6 @@
     static const half weight[3] = {
         0.22702703h, 0.31621622h, 0.07027027h
     };
-    
 
     half3 FilteredColour(half3 color)
     {
@@ -67,10 +65,6 @@
         
         // mask first then blur then filter
         half3 color = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_LinearClamp, uv).xyz;
-        
-        half hdrMask = FastTonemap(HDRFilter(color).xxx);
-        if (hdrMask <= 0)
-            return 0;
 
         // bloom filter
         color = FilteredColour(color);

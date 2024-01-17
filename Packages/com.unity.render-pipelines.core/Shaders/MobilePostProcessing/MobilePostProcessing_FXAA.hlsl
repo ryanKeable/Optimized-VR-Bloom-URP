@@ -7,9 +7,9 @@
 #define ContrastThreshold (0.0625h)
 #define RelativeThreshold (0.125h)
 
-#define FXAA_SPAN_MAX (8.0h)
-#define FXAA_REDUCE_MUL (0.25h * (1.0h / 12.0h))
-#define FXAA_REDUCE_MIN (1.0h / 128.0h)
+#define RDK_FXAA_SPAN_MAX (8.0h)
+#define RDK_FXAA_REDUCE_MUL (0.25h * (1.0h / 12.0h))
+#define RDK_FXAA_REDUCE_MIN (1.0h / 128.0h)
 
 struct HDRLuminanceData
 {
@@ -126,10 +126,10 @@ half3 FXAA_HDRFilter(half3 input, half2 uv, TEXTURE2D_X(tex), half4 texelSize)
 
     half lumaSum = l.nw.x + l.sw.x + l.se.x + l.ne.x;
 
-    half dirReduce = max(lumaSum * FXAA_REDUCE_MUL, FXAA_REDUCE_MIN);
+    half dirReduce = max(lumaSum * RDK_FXAA_REDUCE_MUL, RDK_FXAA_REDUCE_MIN);
     half rcpDirMin = rcp(min(abs(dir.x), abs(dir.y)) + dirReduce);
 
-    dir = min((FXAA_SPAN_MAX).xx, max((-FXAA_SPAN_MAX).xx, dir * rcpDirMin)) * texelSize.xy;
+    dir = min((RDK_FXAA_SPAN_MAX).xx, max((-RDK_FXAA_SPAN_MAX).xx, dir * rcpDirMin)) * texelSize.xy;
     
     // cheaper and nicer blending
     half3 rgb[4];
