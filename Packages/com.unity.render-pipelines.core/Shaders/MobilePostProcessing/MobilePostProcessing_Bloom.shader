@@ -10,9 +10,9 @@
 
     #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
     #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Filtering.hlsl"
-    #include "Packages/OptimizedPostProcessingURP/ShaderLibrary/Core.hlsl"
+    #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Core.hlsl"
     #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
-    #include "Packages/OptimizedPostProcessingURP/Shaders/PostProcessing/Common.hlsl"
+    #include "Packages/com.unity.render-pipelines.core/Shaders/PostProcessing/Common.hlsl"
     #include "MobilePostProcessing_FXAA.hlsl"
     
     TEXTURE2D_X(_MainTexLowMip);
